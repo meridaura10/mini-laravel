@@ -1,0 +1,15 @@
+<?php
+
+namespace {{ namespace }};
+
+use Closure;
+use Framework\Kernel\Http\Requests\Request;
+use Framework\Kernel\Http\Responses\Response;
+
+class {{ class }}
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        return $next($request);
+    }
+}

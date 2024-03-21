@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+define('LARAVEL_START', microtime(true));
+
+
+require __DIR__.'/vendor/autoload.php';
+
+$app = require_once __DIR__.'/bootstrap/app.php';
+
+$kernel = $app->make(\Framework\Kernel\Console\Contracts\KernelInterface::class);
+
+$status = $kernel->handle(
+    new \Framework\Kernel\Console\Input\ArgInput(),
+    new \Framework\Kernel\Console\Output\ConsoleOutput(),
+);
+
+exit($status);
