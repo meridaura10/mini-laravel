@@ -3,6 +3,8 @@
 namespace Framework\Kernel\Database\Migrations;
 
 use Framework\Kernel\Console\Contracts\ConsoleOutputInterface;
+use Framework\Kernel\Console\View\Components\Info;
+use Framework\Kernel\Console\View\Components\Task;
 use Framework\Kernel\Database\Contracts\ConnectionResolverInterface;
 use Framework\Kernel\Database\Migrations\Contracts\MigrationRepositoryInterface;
 use Framework\Kernel\Events\Contracts\DispatcherInterface;
@@ -11,6 +13,7 @@ use function Termwind\render;
 
 class Migrator
 {
+    protected static array $requiredPathCache = [];
     protected array $paths = [];
 
     protected ?string $connection = null;
@@ -54,6 +57,8 @@ class Migrator
     public function runPending(array $migrations, array $options = []): void
     {
         if(count($migrations) === 0){
+            $this->write(Info::class, 'Nothing to migrate');
+
             return;
         }
 
@@ -63,6 +68,8 @@ class Migrator
 
         $step = $options['step'] ?? false;
 
+        $this->write(Info::class, 'Running migrations.');
+
         foreach ($migrations as $file) {
             $this->runUp($file, $batch, $pretend);
 
@@ -70,11 +77,46 @@ class Migrator
                 $batch++;
             }
         }
+
+        $this->write(Info::class, 'Finish saving migrations.');
+    }
+
+    protected function write(string $component,...$arguments): void
+    {
+        if ($this->output && class_exists($component)) {
+            (new $component($this->output))->render(...$arguments);
+        } else {
+            foreach ($arguments as $argument) {
+                if (is_callable($argument)) {
+                    $argument();
+                }
+            }
+        }
     }
 
     protected function runUp(string $file, int $batch, bool $pretend): void
     {
+        $migration = $this->resolvePath($file);
 
+        $name = $this->getMigrationName($file);
+
+//        if ($pretend) {
+//            return $this->pretendToRun($migration, 'up');
+//        }
+
+        $this->write(Task::class, $name, fn () => $this->runMigration($migration, 'up'));
+
+        $this->repository->log($name, $batch);
+    }
+
+    protected function runMigration(Migration $migration, string $method)
+    {
+
+    }
+
+    protected function resolvePath(string $path): Migration
+    {
+        return static::$requiredPathCache[$path] ??= $this->files->getRequire($path);
     }
 
     public function requireFiles(array $files): void

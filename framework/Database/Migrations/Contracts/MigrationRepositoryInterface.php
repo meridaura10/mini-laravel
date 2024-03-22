@@ -14,4 +14,5 @@ interface MigrationRepositoryInterface
 
     public function getLastBatchNumber(): int;
 
+    public function log(string $file,int $batch): void;
 }

@@ -73,4 +73,10 @@ class DatabaseMigrationRepository implements MigrationRepositoryInterface
     {
         return $this->table()->max('batch');
     }
+
+
+    public function log(string $file, int $batch): void
+    {
+        // TODO: Implement log() method.
+    }
 }
