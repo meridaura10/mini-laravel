@@ -2,12 +2,16 @@
 
 namespace Framework\Kernel\Console\Traits;
 
+use Framework\Kernel\Console\Contracts\ConsoleOutputInterface;
 use Framework\Kernel\Console\Contracts\InputInterface;
 use Framework\Kernel\Console\View\Contracts\ConsoleViewInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 trait InteractsWithIOTrait
 {
     protected ?ConsoleViewInterface $view = null;
+
+    protected ?ConsoleOutputInterface $output = null;
 
     protected ?InputInterface $input = null;
 

@@ -22,7 +22,7 @@ class MigrateCommand extends BaseCommand
     protected ?string $description = 'Run the database migrations';
 
     public function __construct(
-        protected Migrator            $migrator,
+        protected Migrator $migrator,
         protected DispatcherInterface $dispatcher,
     )
     {
@@ -34,6 +34,11 @@ class MigrateCommand extends BaseCommand
         $this->migrator->usingConnection($this->option('database'), function () {
             $this->prepareDatabase();
 
+            $this->migrator->setOutput($this->output)
+                ->run($this->getMigrationPaths(), [
+                    'pretend' => $this->option('pretend'),
+                    'step' => $this->option('step'),
+                ]);
         });
 
         return 0;
@@ -60,6 +65,26 @@ class MigrateCommand extends BaseCommand
         } catch (\Exception $exception) {
             $this->view->error('error to start migration ' . $exception->getMessage());
         }
+    }
+
+    protected function getMigrationPaths(): array
+    {
+        if ($this->input->hasOption('path') && $this->option('path')) {
+            return collect($this->option('path'))->map(function ($path) {
+                return ! $this->usingRealPath()
+                    ? $this->app->basePath().'/'.$path
+                    : $path;
+            })->all();
+        }
+
+        return array_merge(
+            $this->migrator->paths(), [$this->getMigrationPath()]
+        );
+    }
+
+    protected function usingRealPath(): bool
+    {
+        return $this->input->hasOption('realpath') && $this->option('realpath');
     }
 
     protected function repositoryExists(): bool

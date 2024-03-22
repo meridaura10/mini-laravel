@@ -27,6 +27,8 @@ class MigrateInstallCommand extends BaseCommand
         $this->repository->createRepository();
 
         $this->view->info('Migration table created successfully.');
+
+        return 0;
     }
 
     protected function getOptions(): array

@@ -3,6 +3,7 @@
 namespace Framework\Kernel\Database\Contracts;
 
 use Closure;
+use Framework\Kernel\Database\Query\QueryBuilder;
 use Framework\Kernel\Database\Schema\Grammar\SchemaGrammar;
 use PDO;
 
@@ -31,6 +32,10 @@ interface ConnectionInterface
     public function getConfig(?string $option = null): null|string|array;
 
     public function getDatabaseName(): string;
+
+    public function statement(string $query,array $bindings = []): bool;
+
+    public function table(QueryBuilderInterface|ExpressionInterface|string $table, ?string $as = null): QueryBuilderInterface;
 }
 
 //{

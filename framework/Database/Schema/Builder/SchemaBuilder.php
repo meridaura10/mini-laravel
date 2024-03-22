@@ -10,6 +10,10 @@ use Framework\Kernel\Database\Schema\Grammar\SchemaGrammar;
 
 class SchemaBuilder implements SchemaBuilderInterface
 {
+    public static int $defaultStringLength = 255;
+
+    public static bool $alwaysUsesNativeSchemaOperationsIfPossible = false;
+
     protected SchemaGrammar $grammar;
 
     public function __construct(
@@ -55,7 +59,6 @@ class SchemaBuilder implements SchemaBuilderInterface
 
     protected function build(Blueprint $blueprint): void
     {
-        dd($blueprint);
-//        $blueprint->build($this->connection, $this->grammar);
+        $blueprint->build($this->connection, $this->grammar);
     }
 }

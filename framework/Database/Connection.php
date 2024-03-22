@@ -4,6 +4,7 @@ namespace Framework\Kernel\Database;
 
 use Closure;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
+use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
 use Framework\Kernel\Database\Contracts\SchemaBuilderInterface;
 use Framework\Kernel\Database\Exceptions\LostConnectionException;
@@ -311,5 +312,15 @@ class Connection implements ConnectionInterface
     public function selectFromWriteConnection(string $query, array $bindings = []): array
     {
         return $this->select($query,$bindings,false);
+    }
+
+    public function usingNativeSchemaOperations(): bool
+    {
+        return SchemaBuilder::$alwaysUsesNativeSchemaOperationsIfPossible;
+    }
+
+    public function table(QueryBuilderInterface|string|ExpressionInterface $table, ?string $as = null): QueryBuilderInterface
+    {
+        return $this->query()->from($table, $as);
     }
 }

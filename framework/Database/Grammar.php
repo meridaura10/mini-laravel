@@ -5,6 +5,7 @@ namespace Framework\Kernel\Database;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Query\QueryBuilder;
+use Framework\Kernel\Database\Schema\Blueprint;
 
 abstract class Grammar
 {
@@ -17,7 +18,7 @@ abstract class Grammar
         return $this;
     }
 
-    public function wrapTable(string|ExpressionInterface $table): string
+    public function wrapTable(string|ExpressionInterface|Blueprint $table): string
     {
         if (! $this->isExpression($table)) {
             return $this->wrap($table, true);
@@ -37,7 +38,6 @@ abstract class Grammar
 
     public function wrapSegments(mixed $segments): string
     {
-
         return implode('.', array_map(function ($segment, $key) use ($segments) {
             return $key == 0 && count($segments) > 1
                 ? $this->wrapTable($segment)

@@ -2,8 +2,12 @@
 
 namespace Framework\Kernel\Database\Query;
 
+use Closure;
+use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
+use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
+use Framework\Kernel\Database\Eloquent\Builder;
 use Framework\Kernel\Database\Grammar;
 use Framework\Kernel\Database\Query\Processors\Processor;
 use Framework\Kernel\Database\Traits\BuildsQueriesTrait;
@@ -26,6 +30,12 @@ class QueryBuilder implements QueryBuilderInterface
         'unionOrder' => [],
     ];
 
+    public array $havings = [];
+
+    public array $aggregate = [];
+    public ?array $orders = null;
+
+
     protected Grammar $grammar;
 
     protected Processor $processor;
@@ -42,11 +52,14 @@ class QueryBuilder implements QueryBuilderInterface
 
     public bool $distinct = false;
 
+    public bool $useWritePdo = false;
+
     public function __construct(
         protected ConnectionInterface $connection,
-        ?Grammar $grammar = null,
-        ?Processor $processor = null
-    ) {
+        ?Grammar                      $grammar = null,
+        ?Processor                    $processor = null
+    )
+    {
         $this->grammar = $grammar ?: $connection->getQueryGrammar();
         $this->processor = $processor ?: $connection->getPostProcessor();
     }
@@ -104,7 +117,7 @@ class QueryBuilder implements QueryBuilderInterface
     protected function runSelect(): array
     {
         return $this->connection->select(
-            $this->toSql(), $this->getBindings()
+            $this->toSql(), $this->getBindings(), !$this->useWritePdo,
         );
     }
 
@@ -123,5 +136,105 @@ class QueryBuilder implements QueryBuilderInterface
         $sql = $this->grammar->compileInsertGetId($this, $values, $sequence);
 
         return $this->processor->processInsertGetId($this, $sql, $values, $sequence);
+    }
+
+    public function useWritePdo(): static
+    {
+        $this->useWritePdo = true;
+
+        return $this;
+    }
+
+    public function orderBy(BuilderInterface|Closure|string|ExpressionInterface|QueryBuilderInterface $column, bool $direction = true): static
+    {
+        $direction = $direction ? 'asc' : 'desc';
+
+        if ($this->isQueryable($column)) {
+            dd('query builder 147 isQueryable true');
+        }
+
+        $this->{$this->unions ? 'unionOrders' : 'orders'}[] = [
+            'column' => $column,
+            'direction' => $direction,
+        ];
+
+        return $this;
+    }
+
+    protected function isQueryable(mixed $value): bool
+    {
+        return $value instanceof self ||
+            $value instanceof BuilderInterface ||
+            $value instanceof Closure;
+//            $value instanceof Relation ||
+    }
+
+    public function pluck(string|ExpressionInterface $column, ?string $key = null): Collection
+    {
+        $queryResult = $this->onceWithColumns(
+            is_null($key) ? [$column] : [$column, $key],
+            function () {
+                return $this->processor->processSelect(
+                    $this, $this->runSelect()
+                );
+            }
+        );
+
+        return collect();
+    }
+
+    public function cloneWithout(array $properties): static
+    {
+        return tap($this->clone(), function (self $clone) use ($properties) {
+            foreach ($properties as $property) {
+                $clone->{$property} = null;
+            }
+        });
+    }
+
+    public function cloneWithoutBindings(array $except): static
+    {
+        return tap($this->clone(), function (self $clone) use ($except) {
+            foreach ($except as $type) {
+                $clone->bindings[$type] = [];
+            }
+        });
+    }
+
+    protected function setAggregate(string $function, array $columns): static
+    {
+        $this->aggregate = compact('function', 'columns');
+
+        if (empty($this->groups)) {
+            $this->orders = null;
+
+            $this->bindings['order'] = [];
+        }
+
+        return $this;
+    }
+
+    public function aggregate(string $function, array $columns = ['*']): mixed
+    {
+        $results = $this->cloneWithout($this->unions || $this->havings ? [] : ['columns'])
+                         ->cloneWithoutBindings($this->unions || $this->havings ? [] : ['select'])
+                         ->setAggregate($function, $columns)
+                          ->get($columns);
+
+        if (! $results->isEmpty()) {
+            return array_change_key_case((array) $results[0])['aggregate'];
+        }
+
+        return 0;
+    }
+
+    public function max(string|ExpressionInterface $column): mixed
+    {
+        return $this->aggregate(__FUNCTION__, [$column]);
+    }
+
+    public function clone(): static
+    {
+        return clone $this;
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Framework\Kernel\Database\Migrations;
 
-class Migration
+abstract class Migration
 {
     protected ?string $connection = null;
 

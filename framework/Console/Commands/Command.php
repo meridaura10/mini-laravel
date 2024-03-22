@@ -92,6 +92,7 @@ class Command extends SCommand
     protected function initialize(InputInterface $input, ConsoleOutputInterface $output): void
     {
         $this->input = $input;
+        $this->output = $output;
     }
 
     public function getName(): ?string
