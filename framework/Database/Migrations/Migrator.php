@@ -111,7 +111,7 @@ class Migrator
 
     protected function runMigration(Migration $migration, string $method)
     {
-
+      dd($method);
     }
 
     protected function resolvePath(string $path): Migration
