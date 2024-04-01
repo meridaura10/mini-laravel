@@ -7,6 +7,7 @@ use Framework\Kernel\Database\Connection;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Schema\Blueprint;
 use Framework\Kernel\Support\Fluent;
+use mysql_xdevapi\Expression;
 
 class SchemaMySqlGrammar extends SchemaGrammar
 {

@@ -225,6 +225,18 @@ class Blueprint
         return $this->addColumn('string', $column, compact('length'));
     }
 
+    public function timestamps(int $precision = 0): void
+    {
+        $this->timestamp('created_at', $precision)->nullable();
+
+        $this->timestamp('updated_at', $precision)->nullable();
+    }
+
+    public function timestamp($column, $precision = 0): ColumnDefinition
+    {
+        return $this->addColumn('timestamp', $column, compact('precision'));
+    }
+
     public function getTable(): string
     {
         return $this->table;

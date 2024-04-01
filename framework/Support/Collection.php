@@ -2,6 +2,7 @@
 
 namespace Framework\Kernel\Support;
 
+use ArrayAccess;
 use Framework\Kernel\Contracts\Support\Arrayable;
 use Framework\Kernel\Contracts\Support\Jsonable;
 use Framework\Kernel\Support\Traits\EnumeratesValuesTrait;
@@ -12,7 +13,7 @@ use Traversable;
 use UnitEnum;
 use WeakMap;
 
-class Collection
+class Collection implements ArrayAccess
 {
     use EnumeratesValuesTrait;
 
@@ -261,5 +262,30 @@ class Collection
     public function isEmpty(): bool
     {
         return empty($this->items);
+    }
+
+    public function offsetExists($offset): bool
+    {
+        return isset($this->items[$offset]);
+    }
+
+    public function offsetGet($offset): mixed
+    {
+        return $this->items[$offset];
+    }
+
+    public function offsetSet($offset, $value): void
+    {
+        if (is_null($offset)) {
+            $this->items[] = $value;
+        } else {
+            $this->items[$offset] = $value;
+        }
+    }
+
+
+    public function offsetUnset($offset): void
+    {
+        unset($this->items[$offset]);
     }
 }

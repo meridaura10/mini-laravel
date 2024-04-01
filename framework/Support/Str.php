@@ -2,6 +2,7 @@
 
 namespace Framework\Kernel\Support;
 
+use Framework\Kernel\Support\Pluralizer\Pluralizer;
 use Traversable;
 
 class Str
@@ -110,9 +111,9 @@ class Str
         return static::$snakeCache[$key][$delimiter] = $value;
     }
 
-    public static function plural(string $value, int|array|\Countable $count = 2)
+    public static function plural(string $value, int|array|\Countable $count = 2): string
     {
-        return $count === 1 ? $value : $value.'s';
+        return Pluralizer::plural($value, $count);
     }
 
     public static function lower(string $value): string

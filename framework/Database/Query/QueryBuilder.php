@@ -2,6 +2,7 @@
 
 namespace Framework\Kernel\Database\Query;
 
+use BackedEnum;
 use Closure;
 use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
@@ -50,7 +51,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     public ?array $columns = null;
 
-    public bool $distinct = false;
+    public bool|array $distinct = false;
 
     public bool $useWritePdo = false;
 
@@ -117,7 +118,7 @@ class QueryBuilder implements QueryBuilderInterface
     protected function runSelect(): array
     {
         return $this->connection->select(
-            $this->toSql(), $this->getBindings(), !$this->useWritePdo,
+            $this->toSql(), $this->getBindings(), !$this->useWritePdo
         );
     }
 
@@ -236,5 +237,43 @@ class QueryBuilder implements QueryBuilderInterface
     public function clone(): static
     {
         return clone $this;
+    }
+
+    public function insert(array $values): bool
+    {
+        if(empty($values)){
+            return true;
+        }
+
+        if (! is_array(reset($values))) {
+            $values = [$values];
+        } else {
+            foreach ($values as $key => $value) {
+                ksort($value);
+
+                $values[$key] = $value;
+            }
+        }
+
+        return $this->connection->insert(
+            $this->grammar->compileInsert($this, $values),
+            $this->cleanBindings(Arr::flatten($values, 1)),
+        );
+    }
+
+    public function castBinding($value)
+    {
+        return $value instanceof BackedEnum ? $value->value : $value;
+    }
+
+    public function cleanBindings(array $bindings): array
+    {
+        return collect($bindings)
+            ->reject(function ($binding) {
+                return $binding instanceof ExpressionInterface;
+            })
+            ->map([$this, 'castBinding'])
+            ->values()
+            ->all();
     }
 }

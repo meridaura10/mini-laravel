@@ -26,7 +26,7 @@ class MigrateMakeCommand extends BaseCommand
         parent::__construct();
     }
 
-    public function hadnle(): int
+    public function handle(): int
     {
         $name = Str::snake(trim($this->argument('name')));
 

@@ -36,6 +36,10 @@ interface ConnectionInterface
     public function statement(string $query,array $bindings = []): bool;
 
     public function table(QueryBuilderInterface|ExpressionInterface|string $table, ?string $as = null): QueryBuilderInterface;
+
+    public function useDefaultSchemaGrammar(): void;
+
+    public function transaction(callable $callback, int $attempts = 1): mixed;
 }
 
 //{

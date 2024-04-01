@@ -71,12 +71,13 @@ class DatabaseMigrationRepository implements MigrationRepositoryInterface
 
     public function getLastBatchNumber(): int
     {
-        return $this->table()->max('batch');
+        return $this->table()->max('batch') ?? 0;
     }
-
 
     public function log(string $file, int $batch): void
     {
-        // TODO: Implement log() method.
+        $record = ['migration' => $file, 'batch' => $batch];
+
+        $this->table()->insert($record);
     }
 }

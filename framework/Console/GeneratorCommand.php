@@ -102,7 +102,7 @@ abstract class GeneratorCommand extends Command
         parent::__construct();
     }
 
-    public function hadnle(): int
+    public function handle(): int
     {
         if ($this->isReservedName($this->getNameInput())) {
             $this->view->error('The name "'.$this->getNameInput().'" is reserved by PHP.');

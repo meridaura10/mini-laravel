@@ -5,8 +5,10 @@ namespace Framework\Kernel\Database\Migrations;
 use Framework\Kernel\Console\Contracts\ConsoleOutputInterface;
 use Framework\Kernel\Console\View\Components\Info;
 use Framework\Kernel\Console\View\Components\Task;
+use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ConnectionResolverInterface;
 use Framework\Kernel\Database\Migrations\Contracts\MigrationRepositoryInterface;
+use Framework\Kernel\Database\Schema\Grammar\SchemaGrammar;
 use Framework\Kernel\Events\Contracts\DispatcherInterface;
 use Framework\Kernel\Filesystem\Contracts\FilesystemInterface;
 use function Termwind\render;
@@ -56,7 +58,7 @@ class Migrator
 
     public function runPending(array $migrations, array $options = []): void
     {
-        if(count($migrations) === 0){
+        if (count($migrations) === 0) {
             $this->write(Info::class, 'Nothing to migrate');
 
             return;
@@ -64,24 +66,20 @@ class Migrator
 
         $batch = $this->repository->getNextBatchNumber();
 
-        $pretend = $options['pretend'] ?? false;
-
         $step = $options['step'] ?? false;
 
         $this->write(Info::class, 'Running migrations.');
 
         foreach ($migrations as $file) {
-            $this->runUp($file, $batch, $pretend);
+            $this->runUp($file, $batch);
 
             if ($step) {
                 $batch++;
             }
         }
-
-        $this->write(Info::class, 'Finish saving migrations.');
     }
 
-    protected function write(string $component,...$arguments): void
+    protected function write(string $component, ...$arguments): void
     {
         if ($this->output && class_exists($component)) {
             (new $component($this->output))->render(...$arguments);
@@ -94,24 +92,64 @@ class Migrator
         }
     }
 
-    protected function runUp(string $file, int $batch, bool $pretend): void
+    protected function runUp(string $file, int $batch): void
     {
         $migration = $this->resolvePath($file);
 
         $name = $this->getMigrationName($file);
 
-//        if ($pretend) {
-//            return $this->pretendToRun($migration, 'up');
-//        }
-
-        $this->write(Task::class, $name, fn () => $this->runMigration($migration, 'up'));
+        $this->write(Task::class, $name, fn() => $this->runMigration($migration, 'up'));
 
         $this->repository->log($name, $batch);
     }
 
-    protected function runMigration(Migration $migration, string $method)
+    protected function runMigration(Migration $migration, string $method): void
     {
-      dd($method);
+        $connection = $this->resolveConnection(
+            $migration->getConnection(),
+        );
+
+        $callback = function () use ($connection, $migration, $method) {
+            if (method_exists($migration, $method)) {
+                $this->runMethod($connection, $migration, $method);
+            }
+        };
+
+
+        $this->getSchemaGrammar($connection)->supportsSchemaTransactions()
+        && $migration->withinTransaction
+            ? $connection->transaction($callback)
+            : $callback();
+    }
+
+    protected function runMethod(ConnectionInterface $connection, Migration $migration, string $method): void
+    {
+        $previousConnection = $this->resolver->getDefaultConnection();
+
+
+        try {
+            $this->resolver->setDefaultConnection($connection->getName());
+
+            $migration->{$method}();
+        } finally {
+            $this->resolver->setDefaultConnection($previousConnection);
+        }
+    }
+
+    protected function getSchemaGrammar(ConnectionInterface $connection): SchemaGrammar
+    {
+        if (is_null($grammar = $connection->getSchemaGrammar())) {
+            $connection->useDefaultSchemaGrammar();
+
+            $grammar = $connection->getSchemaGrammar();
+        }
+
+        return $grammar;
+    }
+
+    public function resolveConnection(?string $connection = null): ConnectionInterface
+    {
+        return $this->resolver->connection($connection ?: $this->connection);
     }
 
     protected function resolvePath(string $path): Migration

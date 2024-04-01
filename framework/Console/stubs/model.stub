@@ -1,0 +1,11 @@
+<?php
+
+namespace {{ namespace }};
+
+use Framework\Kernel\Database\Eloquent\Factories\Traits\HasFactoryTrait;
+use Framework\Kernel\Database\Eloquent\Model;
+
+class {{ class }} extends Model
+{
+    use HasFactoryTrait;
+}

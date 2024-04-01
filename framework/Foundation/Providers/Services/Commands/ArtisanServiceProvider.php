@@ -4,6 +4,7 @@ namespace Framework\Kernel\Foundation\Providers\Services\Commands;
 
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ControllerMakeCommand;
+use Framework\Kernel\Console\Commands\Artisan\Dev\ModelMakeCommand;
 use Framework\Kernel\Foundation\Providers\Contracts\DeferrableProviderInterface;
 use Framework\Kernel\Foundation\Providers\ServiceProvider;
 
@@ -15,6 +16,7 @@ class ArtisanServiceProvider extends ServiceProvider implements DeferrableProvid
 
     protected array $devCommands = [
         'ControllerMake' => ControllerMakeCommand::class,
+        'ModelMake' => ModelMakeCommand::class,
     ];
 
     public function register(): void

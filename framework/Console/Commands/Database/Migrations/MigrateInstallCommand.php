@@ -20,13 +20,11 @@ class MigrateInstallCommand extends BaseCommand
         parent::__construct();
     }
 
-    public function hadnle(): int
+    public function handle(): int
     {
         $this->repository->setSource($this->input->getOption('database'));
 
         $this->repository->createRepository();
-
-        $this->view->info('Migration table created successfully.');
 
         return 0;
     }

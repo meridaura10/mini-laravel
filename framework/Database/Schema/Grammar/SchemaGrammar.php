@@ -13,6 +13,8 @@ abstract class SchemaGrammar extends Grammar
 
     protected array $modifiers = [];
 
+    protected bool $transactions = false;
+
     abstract public function compileTables(string $database): string;
 
     public function getFluentCommands(): array
@@ -98,5 +100,15 @@ abstract class SchemaGrammar extends Grammar
     protected function typeInteger(Fluent $column): string
     {
         return 'int';
+    }
+
+    public function typeTimestamp(Fluent $column): string
+    {
+        return 'timestamp';
+    }
+
+    public function supportsSchemaTransactions(): bool
+    {
+        return $this->transactions;
     }
 }

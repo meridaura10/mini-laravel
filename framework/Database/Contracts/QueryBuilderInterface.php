@@ -22,4 +22,6 @@ interface QueryBuilderInterface
     public function pluck(ExpressionInterface|string $column,?string $key = null): Collection;
 
     public function max(string|ExpressionInterface $column): mixed;
+
+    public function insert(array $values): bool;
 }

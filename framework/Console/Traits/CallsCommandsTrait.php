@@ -13,7 +13,7 @@ trait CallsCommandsTrait
     {
         $arguments['command'] = $command;
 
-        $result = $this->resolveCommand($command)->run(
+        return $this->resolveCommand($command)->run(
             $this->createInputFromArguments($arguments), $output
         );
     }
@@ -31,6 +31,11 @@ trait CallsCommandsTrait
     public function callSilent(SCommand|string $command, array $arguments = []): int
     {
         return $this->runCommand($command, $arguments, new NullOutput());
+    }
+
+    public function call(SCommand|string $command, array $arguments = []): int
+    {
+        return $this->runCommand($command, $arguments, $this->output);
     }
 
     protected function context(): array

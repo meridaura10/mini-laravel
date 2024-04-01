@@ -58,14 +58,14 @@ class Command extends SCommand
 
     }
 
-    protected function hadnle(): int
+    protected function handle(): int
     {
         throw new \Exception('not fount method handle or command');
     }
 
     protected function execute(InputInterface $input, ConsoleOutputInterface $output): mixed
     {
-        return $this->hadnle();
+        return $this->handle();
     }
 
     public function run(InputInterface $input, ConsoleOutputInterface $output): int

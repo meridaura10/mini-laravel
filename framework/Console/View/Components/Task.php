@@ -26,7 +26,9 @@ class Task extends Component
 
         try {
             $result = ($task ?: fn () => true)();
-        }catch (\Throwable $e){
+        }catch (\Exception $exception){
+            throw $exception;
+        } finally {
             $runTime = $task
                 ? (' '.number_format((microtime(true) - $startTime) * 1000).'ms')
                 : '';
@@ -35,18 +37,13 @@ class Task extends Component
             $width = min(terminal()->width(), 150);
             $dots = max($width - $descriptionWidth - $runTimeWidth - 10, 0);
 
+            $this->output->write(str_repeat('<fg=gray>.</>', $dots), false, $verbosity);
+            $this->output->write("<fg=gray>$runTime</>", false, $verbosity);
 
-            render('<fg=gray>' . str_repeat('░░░░░░', $dots / 6) . '</>', false, $verbosity);
-            render("<fg=gray>$runTime</>", false, $verbosity);
-
-
-            render(
+            $this->output->writeln(
                 $result !== false ? ' <fg=green;options=bold>DONE</>' : ' <fg=red;options=bold>FAIL</>',
                 $verbosity,
             );
-
-            render($e->getMessage());
-
         }
     }
 }

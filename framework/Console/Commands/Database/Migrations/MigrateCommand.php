@@ -3,6 +3,7 @@
 namespace Framework\Kernel\Console\Commands\Database\Migrations;
 
 use Framework\Kernel\Console\Commands\BaseCommand;
+use Framework\Kernel\Console\View\Components\Info;
 use Framework\Kernel\Database\Migrations\Migrator;
 use Framework\Kernel\Events\Contracts\DispatcherInterface;
 use MongoDB\Driver\Exception\Exception;
@@ -22,18 +23,17 @@ class MigrateCommand extends BaseCommand
     protected ?string $description = 'Run the database migrations';
 
     public function __construct(
-        protected Migrator $migrator,
+        protected Migrator            $migrator,
         protected DispatcherInterface $dispatcher,
     )
     {
         parent::__construct();
     }
 
-    public function hadnle(): int
+    public function handle(): int
     {
         $this->migrator->usingConnection($this->option('database'), function () {
             $this->prepareDatabase();
-
             $this->migrator->setOutput($this->output)
                 ->run($this->getMigrationPaths(), [
                     'pretend' => $this->option('pretend'),
@@ -71,8 +71,8 @@ class MigrateCommand extends BaseCommand
     {
         if ($this->input->hasOption('path') && $this->option('path')) {
             return collect($this->option('path'))->map(function ($path) {
-                return ! $this->usingRealPath()
-                    ? $this->app->basePath().'/'.$path
+                return !$this->usingRealPath()
+                    ? $this->app->basePath() . '/' . $path
                     : $path;
             })->all();
         }
@@ -93,7 +93,6 @@ class MigrateCommand extends BaseCommand
             return $this->migrator->repositoryExists();
         } catch (\Throwable $throwable) {
             throw $throwable;
-            return false;
         }
     }
 }

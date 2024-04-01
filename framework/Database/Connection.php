@@ -100,9 +100,9 @@ class Connection implements ConnectionInterface
         return $this->queryGrammar;
     }
 
-    public function select($query, $bindings = [],bool $useReadPdo = true)
+    public function select($query, $bindings = [],bool $useReadPdo = true, $test = false)
     {
-        return $this->run($query, $bindings, function ($query, $bindings) use ($useReadPdo){
+        return $this->run($query, $bindings, function ($query, $bindings) use ($useReadPdo, $test){
 
             $statement = $this->prepared($this->getPdoForSelect()->prepare($query));
 
@@ -275,7 +275,7 @@ class Connection implements ConnectionInterface
 
     public function getName(): ?string
     {
-        return $this->getConfig('name');
+        return $this->getConfig('name') ?? $this->getConfig('driver');
     }
 
     public function getDatabaseName(): string
@@ -322,5 +322,10 @@ class Connection implements ConnectionInterface
     public function table(QueryBuilderInterface|string|ExpressionInterface $table, ?string $as = null): QueryBuilderInterface
     {
         return $this->query()->from($table, $as);
+    }
+
+    public function transaction(callable $callback, int $attempts = 1): mixed
+    {
+        dd($callback,'method transaction or Migrator 134 line');
     }
 }
