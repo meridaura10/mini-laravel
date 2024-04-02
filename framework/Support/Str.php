@@ -41,6 +41,22 @@ class Str
         return static::$studlyCache[$key] = implode($studlyWords);
     }
 
+
+    public static function beforeLast(string $subject,string $search): string
+    {
+        if ($search === '') {
+            return $subject;
+        }
+
+        $pos = mb_strrpos($subject, $search);
+
+        if ($pos === false) {
+            return $subject;
+        }
+
+        return static::substr($subject, 0, $pos);
+    }
+
     public static function ucfirst(string $string): string
     {
         return static::upper(static::substr($string, 0, 1)).static::substr($string, 1);

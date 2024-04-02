@@ -87,10 +87,11 @@ class Artisan implements ArtisanInterface
     {
         $event = new ConsoleCommandEvent($command, $input, $output);
 
-        $command->mergeApplicationDefinition();
-
         try {
+            $command->mergeApplicationDefinition();
+
             $input->bind($command->getDefinition());
+
         } catch (\Exception $exception) {
 
         }

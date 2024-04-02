@@ -40,6 +40,8 @@ abstract class Model
 
     protected string $primaryKey = 'id';
 
+    protected string $keyType = 'int';
+
     public static function setConnectionResolver(ConnectionResolverInterface $resolver): void
     {
         static::$resolver = $resolver;
@@ -207,6 +209,21 @@ abstract class Model
         return $this;
     }
 
+    public static function unguarded(callable $callback): mixed
+    {
+        if (static::$unguarded) {
+            return $callback();
+        }
+
+        static::unguard();
+
+        try {
+            return $callback();
+        } finally {
+            static::reguard();
+        }
+    }
+
     protected function newQuery(): BuilderInterface
     {
         return $this->registerGlobalScopes($this->newQueryWithoutScopes());
@@ -260,6 +277,16 @@ abstract class Model
     protected function getConnectionName(): ?string
     {
         return $this->connection;
+    }
+
+    public function getForeignKey(): string
+    {
+        return Str::snake(class_basename($this)).'_'.$this->getKeyName();
+    }
+
+    public function getKeyType(): string
+    {
+        return $this->keyType;
     }
 
     public static function resolveConnection(?string $connection = null): ConnectionInterface

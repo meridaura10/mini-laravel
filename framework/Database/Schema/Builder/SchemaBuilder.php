@@ -57,6 +57,13 @@ class SchemaBuilder implements SchemaBuilderInterface
          return new Blueprint($table, $callback);
     }
 
+    public function dropIfExists(string $table): void
+    {
+        $this->build(tap($this->createBlueprint($table), function (Blueprint $blueprint){
+            $blueprint->dropIfExists();
+        }));
+    }
+
     protected function build(Blueprint $blueprint): void
     {
         $blueprint->build($this->connection, $this->grammar);

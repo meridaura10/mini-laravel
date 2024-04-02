@@ -21,8 +21,21 @@ abstract class Input implements InputInterface
     {
         if ($definition) {
             $this->bind($definition);
+            $this->validate();
         } else {
             $this->definition = new InputDefinition();
+        }
+    }
+
+    public function validate(): void
+    {
+        $definition = $this->definition;
+        $givenArguments = $this->arguments;
+
+        $missingArguments = array_filter(array_keys($definition->getArguments()), fn ($argument) => !\array_key_exists($argument, $givenArguments) && $definition->getArgument($argument)->isRequired());
+
+        if (\count($missingArguments) > 0) {
+            throw new \RuntimeException(sprintf('Not enough arguments (missing: "%s").', implode(', ', $missingArguments)));
         }
     }
 
@@ -33,14 +46,13 @@ abstract class Input implements InputInterface
 
     public function getArgument(string|int $name): mixed
     {
-        if (!$this->hasArgument($name)) {
-            throw new \Exception(sprintf('The "%s" argument does not exist.', $name));
+        if (!$this->definition->hasArgument($name)) {
+            throw new InvalidArgumentException(sprintf('The "%s" argument does not exist.', $name));
         }
 
-        $arguments = \is_int($name) ? array_values($this->arguments) : $this->arguments;
-
-        return $arguments[$name];
+        return $this->arguments[$name] ?? $this->definition->getArgument($name)->getDefault();
     }
+
 
     public function hasArgument(string|int $name): bool
     {

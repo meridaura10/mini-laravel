@@ -3,13 +3,14 @@
 namespace Framework\Kernel\Database\Schema;
 
 use Closure;
-use Framework\Kernel\Database\Connection;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
-use Framework\Kernel\Database\Migrations\ColumnDefinition;
+use Framework\Kernel\Database\Eloquent\Model;
 use Framework\Kernel\Database\Schema\Builder\SchemaBuilder;
 use Framework\Kernel\Database\Schema\Grammar\SchemaGrammar;
+use Framework\Kernel\Database\Schema\Support\ColumnDefinition;
+use Framework\Kernel\Database\Schema\Support\ForeignIdColumnDefinition;
+use Framework\Kernel\Database\Schema\Support\ForeignKeyDefinition;
 use Framework\Kernel\Support\Fluent;
-use mysql_xdevapi\Expression;
 
 
 class Blueprint
@@ -46,7 +47,7 @@ class Blueprint
 
     public function toSql(ConnectionInterface $connection, SchemaGrammar $grammar): array
     {
-        $this->addImpliedCommands($connection, $grammar);
+       $this->addImpliedCommands($connection, $grammar);
 
         $statements = [];
 
@@ -57,10 +58,8 @@ class Blueprint
 
             $method = 'compile' . ucfirst($command->name);
 
-            if (method_exists($grammar, $method)) {
-                if (!is_null($sql = $grammar->$method($this, $command, $connection))) {
-                    $statements = array_merge($statements, (array)$sql);
-                }
+            if (!is_null($sql = $grammar->$method($this, $command, $connection))) {
+                $statements = array_merge($statements, (array)$sql);
             }
         }
 
@@ -98,6 +97,7 @@ class Blueprint
     protected function addFluentIndexes(): void
     {
         foreach ($this->columns as $column) {
+
             foreach (['primary', 'unique', 'index', 'fulltext', 'fullText', 'spatialIndex'] as $index) {
 
                 if ($column->{$index} === true) {
@@ -106,6 +106,8 @@ class Blueprint
 
                     continue 2;
                 }
+
+
 
                 if ($column->{$index} === false && $column->chande) {
                     $this->{'drop' . ucfirst($index)}([$column->name]);
@@ -123,6 +125,11 @@ class Blueprint
                 }
             }
         }
+    }
+
+    public function dropIfExists(): Fluent
+    {
+        return $this->addCommand('dropIfExists');
     }
 
     public function getAddedColumns(): array
@@ -235,6 +242,66 @@ class Blueprint
     public function timestamp($column, $precision = 0): ColumnDefinition
     {
         return $this->addColumn('timestamp', $column, compact('precision'));
+    }
+
+    public function foreignIdFor(Model|string $model, ?string $column = null): ForeignIdColumnDefinition
+    {
+        if(is_string($model)){
+            $model = new $model;
+        }
+
+        $column = $column ?: $model->getForeignKey();
+
+        if ($model->getKeyType() === 'int' && $model->getIncrementing()) {
+            return $this->foreignId($column);
+        }
+
+//        $modelTraits = class_uses_recursive($model);
+//
+//        if (in_array(HasUlids::class, $modelTraits, true)) {
+//            return $this->foreignUlid($column);
+//        }
+//
+//        return $this->foreignUuid($column);
+    }
+
+    public function foreign(string|array $columns, ?string $name = null): ForeignKeyDefinition
+    {
+        $command = new ForeignKeyDefinition(
+            $this->indexCommand('foreign', $columns, $name)->getAttributes()
+        );
+
+        $this->commands[count($this->commands) - 1] = $command;
+
+        return $command;
+    }
+
+    protected function indexCommand(string $type, string|array $columns, ?string $index, ?string $algorithm = null): Fluent
+    {
+        $columns = (array) $columns;
+
+        $index = $index ?: $this->createIndexName($type, $columns);
+
+        return $this->addCommand(
+            $type, compact('index', 'columns', 'algorithm')
+        );
+    }
+
+    protected function createIndexName(string $type, array $columns): string
+    {
+        $index = strtolower($this->table.'_'.implode('_', $columns).'_'.$type);
+
+        return str_replace(['-', '.'], '_', $index);
+    }
+
+    public function foreignId(string $column): ColumnDefinition
+    {
+        return $this->addColumnDefinition(new ForeignIdColumnDefinition($this, [
+            'type' => 'bigInteger',
+            'name' => $column,
+            'autoIncrement' => false,
+            'unsigned' => true,
+        ]));
     }
 
     public function getTable(): string

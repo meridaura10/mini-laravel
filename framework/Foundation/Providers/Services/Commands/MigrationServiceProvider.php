@@ -7,6 +7,8 @@ use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Console\Commands\Database\Migrations\MigrateCommand;
 use Framework\Kernel\Console\Commands\Database\Migrations\MigrateInstallCommand;
 use Framework\Kernel\Console\Commands\Database\Migrations\MigrateMakeCommand;
+use Framework\Kernel\Console\Commands\Database\Migrations\MigrateRefreshCommand;
+use Framework\Kernel\Console\Commands\Database\Migrations\MigrateResetCommand;
 use Framework\Kernel\Database\Migrations\DatabaseMigrationRepository;
 use Framework\Kernel\Database\Migrations\MigrationCreator;
 use Framework\Kernel\Database\Migrations\Migrator;
@@ -19,6 +21,8 @@ class MigrationServiceProvider extends ServiceProvider implements DeferrableProv
         'Migrate' => MigrateCommand::class,
         'MigrateMake' => MigrateMakeCommand::class,
         'MigrateInstall' => MigrateInstallCommand::class,
+        'MigrateRefresh' => MigrateRefreshCommand::class,
+        'MigrateReset' => MigrateResetCommand::class,
     ];
 
     public function register(): void
@@ -70,6 +74,13 @@ class MigrationServiceProvider extends ServiceProvider implements DeferrableProv
         }
 
         $this->commands(array_values($commands));
+    }
+
+    protected function registerMigrateResetCommand(): void
+    {
+        $this->app->singleton(MigrateResetCommand::class, function (ApplicationInterface $app) {
+            return new MigrateResetCommand($app['migrator']);
+        });
     }
 
     protected function registerMigrateMakeCommand(): void

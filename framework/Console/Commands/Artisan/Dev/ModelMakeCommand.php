@@ -29,19 +29,24 @@ class ModelMakeCommand extends GeneratorCommand
             $this->createMigration();
         }
 
-//        if ($this->option('seed')) {
-//            $this->createSeeder();
-//        }
-//
-//        if ($this->option('controller') || $this->option('resource') || $this->option('api')) {
-//            $this->createController();
-//        }
+        if ($this->option('seed')) {
+            $this->createSeeder();
+        }
 //
 //        if ($this->option('policy')) {
 //            $this->createPolicy();
 //        }
 
         return 0;
+    }
+
+    protected function createSeeder(): void
+    {
+        $seeder = Str::studly(class_basename($this->argument('name')));
+
+        $this->call('make:seeder', [
+            'name' => "{$seeder}Seeder",
+        ]);
     }
 
     protected function createMigration(): void
@@ -57,7 +62,6 @@ class ModelMakeCommand extends GeneratorCommand
     protected function getOptions(): array
     {
         return [
-            ['controller', 'c', InputOption::VALUE_NONE, 'Create a new controller for the model'],
             ['factory', 'f', InputOption::VALUE_NONE, 'Create a new factory for the model'],
             ['force', null, InputOption::VALUE_NONE, 'Create the class even if the model already exists'],
             ['migration', 'm', InputOption::VALUE_NONE, 'Create a new migration file for the model'],

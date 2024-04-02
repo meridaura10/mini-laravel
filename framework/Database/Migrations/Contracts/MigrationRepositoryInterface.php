@@ -10,6 +10,8 @@ interface MigrationRepositoryInterface
 
     public function getRan(): array;
 
+    public function delete(object $migration): void;
+
     public function getNextBatchNumber(): int;
 
     public function getLastBatchNumber(): int;

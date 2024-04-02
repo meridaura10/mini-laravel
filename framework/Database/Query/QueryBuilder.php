@@ -181,8 +181,52 @@ class QueryBuilder implements QueryBuilderInterface
             }
         );
 
-        return collect();
+        if (empty($queryResult)) {
+            return collect();
+        }
+
+        $key = $this->stripTableForPluck($key);
+
+        $column = $this->stripTableForPluck($column);
+
+        return is_array($queryResult[0])
+            ? $this->pluckFromArrayColumn($queryResult, $column, $key)
+            : $this->pluckFromObjectColumn($queryResult, $column, $key);
     }
+
+    protected function pluckFromObjectColumn(array $queryResult,string $column, ?string $key = null): Collection
+    {
+        $results = [];
+
+        if (is_null($key)) {
+            foreach ($queryResult as $row) {
+                $results[] = $row->$column;
+            }
+        } else {
+            foreach ($queryResult as $row) {
+                $results[$row->$key] = $row->$column;
+            }
+        }
+
+        return collect($results);
+    }
+
+    protected function stripTableForPluck(?string $column = null): ?string
+    {
+        if (is_null($column)) {
+            return $column;
+        }
+
+        $columnString = $column instanceof ExpressionInterface
+            ? $this->grammar->getValue($column)
+            : $column;
+
+        $separator = str_contains(strtolower($columnString), ' as ') ? ' as ' : '\.';
+
+        $parts = preg_split('~'.$separator.'~i', $columnString);
+        return end($parts);
+    }
+
 
     public function cloneWithout(array $properties): static
     {

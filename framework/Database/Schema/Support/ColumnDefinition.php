@@ -1,6 +1,6 @@
 <?php
 
-namespace Framework\Kernel\Database\Migrations;
+namespace Framework\Kernel\Database\Schema\Support;
 
 use Framework\Kernel\Support\Fluent;
 

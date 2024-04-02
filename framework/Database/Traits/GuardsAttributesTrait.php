@@ -98,4 +98,15 @@ trait GuardsAttributesTrait
             ! str_contains($key, '.') &&
             ! str_starts_with($key, '_');
     }
+
+    public static function unguard(bool $state = true): void
+    {
+        static::$unguarded = $state;
+    }
+
+
+    public static function reguard(): void
+    {
+        static::$unguarded = false;
+    }
 }

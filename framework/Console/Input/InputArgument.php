@@ -29,4 +29,9 @@ class InputArgument
     {
         return self::IS_ARRAY === (self::IS_ARRAY & $this->mode);
     }
+
+    public function getDefault(): string|bool|int|float|array|null
+    {
+        return $this->default;
+    }
 }

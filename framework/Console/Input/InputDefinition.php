@@ -61,7 +61,6 @@ class InputDefinition
 
     public function addArgument(InputArgument $argument): void
     {
-
         $this->arguments[$argument->getName()] = $argument;
     }
 
@@ -80,6 +79,8 @@ class InputDefinition
 
         return $arguments[$name];
     }
+
+
 
     public function setOptions(array $options = []): void
     {

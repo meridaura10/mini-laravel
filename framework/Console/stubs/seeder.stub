@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ namespace }};
+
+use Framework\Kernel\Database\Seeders\Seeder;
+
+class {{ class }} extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        //
+    }
+}

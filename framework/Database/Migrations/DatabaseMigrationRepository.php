@@ -59,6 +59,11 @@ class DatabaseMigrationRepository implements MigrationRepositoryInterface
             ->pluck('migration')->all();
     }
 
+    public function delete(object $migration): void
+    {
+        $this->table()->where('migration', $migration->migration)->delete();
+    }
+
     protected function table(): QueryBuilderInterface
     {
         return $this->getConnection()->table($this->table)->useWritePdo();

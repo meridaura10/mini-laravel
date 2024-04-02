@@ -6,6 +6,7 @@ use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Query\QueryBuilder;
 use Framework\Kernel\Database\Schema\Blueprint;
+use Framework\Kernel\Support\Stringable;
 
 abstract class Grammar
 {
@@ -18,7 +19,7 @@ abstract class Grammar
         return $this;
     }
 
-    public function wrapTable(string|ExpressionInterface|Blueprint $table): string
+    public function wrapTable(string|ExpressionInterface|Blueprint|Stringable $table): string
     {
         if (! $this->isExpression($table)) {
             return $this->wrap($table, true);
@@ -68,7 +69,7 @@ abstract class Grammar
         return implode(', ', array_map([$this, 'wrap'], $columns));
     }
 
-    public function getValue(ExpressionInterface|string|int|float $expression): string|int|float
+    public function getValue(ExpressionInterface|Stringable|string|int|float $expression): string|int|float
     {
         if ($this->isExpression($expression)) {
             return $this->getValue($expression->getValue($this));
@@ -77,7 +78,7 @@ abstract class Grammar
         return $expression;
     }
 
-    public function isExpression(string|ExpressionInterface $value): bool
+    public function isExpression(mixed $value): bool
     {
         return $value instanceof ExpressionInterface;
     }

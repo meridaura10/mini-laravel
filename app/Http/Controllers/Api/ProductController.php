@@ -10,18 +10,8 @@ use Framework\Kernel\Http\Responses\Response;
 
 class ProductController extends Controller
 {
-    public function index(): ResponseInterface
+    public function index()
     {
-        $productFirst = Product::get();
-
-        $productCreate = Product::create(['title' => 'new product title']);
-
-        dd($productCreate, $productFirst);
-
-        // $product2 = $product1->update(['title' => 'prodcut 1']);
-
-        // dd($product1, $product2);
-
         return new Response(['ap' => 2]);
     }
 

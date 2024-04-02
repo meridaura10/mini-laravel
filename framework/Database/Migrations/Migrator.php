@@ -11,6 +11,7 @@ use Framework\Kernel\Database\Migrations\Contracts\MigrationRepositoryInterface;
 use Framework\Kernel\Database\Schema\Grammar\SchemaGrammar;
 use Framework\Kernel\Events\Contracts\DispatcherInterface;
 use Framework\Kernel\Filesystem\Contracts\FilesystemInterface;
+use Framework\Kernel\Support\Arr;
 use function Termwind\render;
 
 class Migrator
@@ -41,6 +42,79 @@ class Migrator
         return tap($callback(), function () use ($previousConnection) {
             $this->setConnection($previousConnection);
         });
+    }
+
+    public function reset(array $paths = [], $pretend = false): array
+    {
+        $migrations = array_reverse($this->repository->getRan());
+
+        if (count($migrations) === 0) {
+            $this->write(Info::class, 'Nothing to rollback.');
+
+            return [];
+        }
+
+        return tap($this->resetMigrations($migrations, Arr::wrap($paths), $pretend), function () {
+            $this->output->writeln('');
+        });
+    }
+
+    protected function resetMigrations(array $migrations, array $paths, bool $pretend = false): array
+    {
+
+        $migrations = collect($migrations)->map(function (string $m){
+            return (object) ['migration' => $m];
+        })->all();
+
+        return $this->rollbackMigrations(
+            $migrations, $paths, compact('pretend'),
+        );
+    }
+
+    protected function rollbackMigrations(array $migrations, array $paths, array $options): array
+    {
+        $rolledBack = [];
+
+        $this->requireFiles($files = $this->getMigrationFiles($paths));
+
+        $this->write(Info::class, 'Rolling back migrations.');
+
+
+
+        foreach ($migrations as $migration){
+            $migration = (object) $migration;
+
+            if (! $file = Arr::get($files, $migration->migration)) {
+//                $this->write(::class, $migration->migration, '<fg=yellow;options=bold>Migration not found</>');
+
+                continue;
+            }
+
+            $rolledBack[] = $file;
+
+            $this->runDown(
+                $file, $migration,
+                $options['pretend'] ?? false
+            );
+        }
+
+        return $rolledBack;
+    }
+
+    protected function runDown(string $file, object $migration, bool $pretend = false): void
+    {
+
+        $instance = $this->resolvePath($file);
+
+        $name = $this->getMigrationName($file);
+
+//        if ($pretend) {
+//            return $this->pretendToRun($instance, 'down');
+//        }
+
+        $this->write(Task::class, $name, fn () => $this->runMigration($instance, 'down'));
+
+        $this->repository->delete($migration);
     }
 
     public function run(array|string $paths, array $options): array
@@ -114,7 +188,6 @@ class Migrator
                 $this->runMethod($connection, $migration, $method);
             }
         };
-
 
         $this->getSchemaGrammar($connection)->supportsSchemaTransactions()
         && $migration->withinTransaction

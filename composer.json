@@ -6,7 +6,8 @@
         ],
         "psr-4": {
             "App\\": "app",
-            "Framework\\Kernel\\": "framework"
+            "Framework\\Kernel\\": "framework",
+            "Database\\Seeders\\": "database/seeders"
         }
     },
     "require": {

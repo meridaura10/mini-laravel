@@ -161,4 +161,9 @@ class SchemaMySqlGrammar extends SchemaGrammar
 
         return null;
     }
+
+    public function compileDropIfExists(Blueprint $blueprint, Fluent $command): string
+    {
+        return 'drop table if exists '.$this->wrapTable($blueprint);
+    }
 }

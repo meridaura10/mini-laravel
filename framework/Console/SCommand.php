@@ -107,7 +107,7 @@ class SCommand
 
     public function mergeApplicationDefinition(bool $mergeArgs = true): void
     {
-        if (! $this->artisan) {
+        if (null === $this->artisan) {
             return;
         }
 

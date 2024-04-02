@@ -6,6 +6,7 @@ use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Grammar;
 use Framework\Kernel\Database\Schema\Blueprint;
 use Framework\Kernel\Support\Fluent;
+use Framework\Kernel\Support\Stringable;
 
 abstract class SchemaGrammar extends Grammar
 {
@@ -55,10 +56,17 @@ abstract class SchemaGrammar extends Grammar
         return $sql;
     }
 
-    public function wrapTable(string|ExpressionInterface|Blueprint $table): string
+    public function wrapTable(string|ExpressionInterface|Blueprint|Stringable $table): string
     {
         return parent::wrapTable(
             $table instanceof Blueprint ? $table->getTable() : $table
+        );
+    }
+
+    public function wrap($value, $prefixAlias = false): string
+    {
+        return parent::wrap(
+            $value instanceof Fluent ? $value->name : $value, $prefixAlias
         );
     }
 
@@ -80,12 +88,30 @@ abstract class SchemaGrammar extends Grammar
         });
     }
 
-    public function wrap($value, $prefixAlias = false): string
+    public function compileForeign(Blueprint $blueprint, Fluent $command)
     {
-        return parent::wrap(
-            $value instanceof Fluent ? $value->name : $value, $prefixAlias
+        $sql = sprintf('alter table %s add constraint %s ',
+            $this->wrapTable($blueprint),
+            $this->wrap($command->index)
         );
+
+        $sql .= sprintf('foreign key (%s) references %s (%s)',
+            $this->columnize($command->columns),
+            $this->wrapTable($command->on),
+            $this->columnize((array) $command->references)
+        );
+
+        if (! is_null($command->onDelete)) {
+            $sql .= " on delete {$command->onDelete}";
+        }
+
+        if (! is_null($command->onUpdate)) {
+            $sql .= " on update {$command->onUpdate}";
+        }
+
+        return $sql;
     }
+
 
     protected function typeBigInteger(Fluent $column): string
     {

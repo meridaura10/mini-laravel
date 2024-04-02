@@ -61,13 +61,13 @@ class ArgInput extends Input
     protected function parseToken(string $token, bool $parseOptions): bool
     {
 
-        if ($parseOptions && $token == '') {
+        if ($parseOptions && '' == $token) {
             $this->parseArgument($token);
-        } elseif ($parseOptions && $token == '--') {
+        } elseif ($parseOptions && '--' == $token) {
             return false;
         } elseif ($parseOptions && str_starts_with($token, '--')) {
             $this->parseLongOption($token);
-        } elseif ($parseOptions && $token[0] === '-' && $token !== '-') {
+        } elseif ($parseOptions && '-' === $token[0] && '-' !== $token) {
             $this->parseShortOption($token);
         } else {
             $this->parseArgument($token);

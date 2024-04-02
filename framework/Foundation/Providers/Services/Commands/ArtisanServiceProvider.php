@@ -5,18 +5,21 @@ namespace Framework\Kernel\Foundation\Providers\Services\Commands;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ControllerMakeCommand;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ModelMakeCommand;
+use Framework\Kernel\Console\Commands\Database\Seeders\SeedCommand;
+use Framework\Kernel\Console\Commands\Database\Seeders\SeederMakeCommand;
 use Framework\Kernel\Foundation\Providers\Contracts\DeferrableProviderInterface;
 use Framework\Kernel\Foundation\Providers\ServiceProvider;
 
 class ArtisanServiceProvider extends ServiceProvider implements DeferrableProviderInterface
 {
     protected array $commands = [
-
+        'Seed' => SeedCommand::class,
     ];
 
     protected array $devCommands = [
         'ControllerMake' => ControllerMakeCommand::class,
         'ModelMake' => ModelMakeCommand::class,
+        'SeederMake' => SeederMakeCommand::class,
     ];
 
     public function register(): void
@@ -25,6 +28,13 @@ class ArtisanServiceProvider extends ServiceProvider implements DeferrableProvid
             $this->commands,
             $this->devCommands
         ));
+    }
+
+    protected function registerSeedCommand(): void
+    {
+        $this->app->singleton(SeedCommand::class, function ($app) {
+            return new SeedCommand($app['db']);
+        });
     }
 
     protected function registerCommands(array $commands): void
