@@ -37,4 +37,9 @@ trait InteractsWithIOTrait
     {
         return $this->input->hasOption($name);
     }
+
+    public function getOutput(): ConsoleOutputInterface
+    {
+        return $this->output;
+    }
 }

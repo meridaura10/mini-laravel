@@ -209,4 +209,9 @@ class Inflector
     {
         return $this->pluralizer->inflect($word);
     }
+
+    public function singularize(string $word): string
+    {
+        return $this->singularizer->inflect($word);
+    }
 }

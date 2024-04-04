@@ -9,7 +9,9 @@ class Str
 {
     protected static array $snakeCache = [];
 
-    protected static $studlyCache = [];
+    protected static array $studlyCache = [];
+
+    protected static array $camelCache = [];
 
     public static function startsWith(string $haystack, iterable|string $needles): bool
     {
@@ -26,6 +28,45 @@ class Str
         return false;
     }
 
+    public static function camel(string $value): string
+    {
+        if (isset(static::$camelCache[$value])) {
+            return static::$camelCache[$value];
+        }
+
+        return static::$camelCache[$value] = lcfirst(static::studly($value));
+    }
+
+    public static function singular(string $value): string
+    {
+        return Pluralizer::singular($value);
+    }
+
+    public static function replaceLast(string $search,string $replace,string $subject): string
+    {
+        $search = (string) $search;
+
+        if ($search === '') {
+            return $subject;
+        }
+
+        $position = strrpos($subject, $search);
+
+        if ($position !== false) {
+            return substr_replace($subject, $replace, $position, strlen($search));
+        }
+
+        return $subject;
+    }
+
+    public static function finish(string $value,string $cap): string
+    {
+        $quoted = preg_quote($cap, '/');
+
+        return preg_replace('/(?:'.$quoted.')+$/u', '', $value).$cap;
+    }
+
+
     public static function studly(string $value): string
     {
         $key = $value;
@@ -39,6 +80,11 @@ class Str
         $studlyWords = array_map(fn ($word) => static::ucfirst($word), $words);
 
         return static::$studlyCache[$key] = implode($studlyWords);
+    }
+
+    public static function after(string $subject, string $search): string
+    {
+        return $search === '' ? $subject : array_reverse(explode($search, $subject, 2))[0];
     }
 
 

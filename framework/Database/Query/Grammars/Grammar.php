@@ -2,8 +2,12 @@
 
 namespace Framework\Kernel\Database\Query\Grammars;
 
+use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
+use Framework\Kernel\Database\Eloquent\Builder;
+use Framework\Kernel\Database\Query\JoinClause;
 use Framework\Kernel\Database\Query\QueryBuilder;
+use Framework\Kernel\Support\Arr;
 
 class Grammar extends \Framework\Kernel\Database\Grammar
 {
@@ -27,6 +31,31 @@ class Grammar extends \Framework\Kernel\Database\Grammar
     public function compileInsertGetId(QueryBuilder $query, array $values, string $sequence): string
     {
         return $this->compileInsert($query, $values);
+    }
+
+    public function prepareBindingsForDelete(array $bindings): array
+    {
+        return Arr::flatten(
+            Arr::except($bindings, 'select')
+        );
+    }
+
+    public function compileDelete(QueryBuilderInterface $query)
+    {
+        $table = $this->wrapTable($query->from);
+
+        $where = $this->compileWheres($query);
+
+        return trim(
+            isset($query->joins)
+                ? $this->compileDeleteWithJoins($query, $table, $where)
+                : $this->compileDeleteWithoutJoins($query, $table, $where)
+        );
+    }
+
+    protected function compileDeleteWithoutJoins(QueryBuilderInterface $query,string $table,string $where): string
+    {
+        return "delete from {$table} {$where}";
     }
 
     public function compileInsert(QueryBuilder $query, array $values): string
@@ -66,7 +95,12 @@ class Grammar extends \Framework\Kernel\Database\Grammar
             $this->compileComponents($query))
         );
 
+        if ($query->unions) {
+            $sql = $this->wrapUnion($sql).' '.$this->compileUnions($query);
+        }
+
         $query->columns = $original;
+
 
         return $sql;
     }
@@ -97,15 +131,58 @@ class Grammar extends \Framework\Kernel\Database\Grammar
     {
         $sql = [];
 
-        foreach ($this->selectComponents as $component) {
-            if (isset($query->$component) && !empty($query->$component)) {
-                $method = 'compile' . ucfirst($component);
 
-                $sql[$component] = $this->$method($query, $query->$component);
+        try {
+            foreach ($this->selectComponents as $component) {
+                if (!empty($query->{$component})) {
+                    $method = 'compile' . ucfirst($component);
+                    $sql[$component] = $this->{$method}($query, $query->{$component});
+                }
             }
+        }catch (\Throwable $exception){
+            throw new \Exception($exception->getMessage());
         }
 
         return $sql;
+    }
+
+    public function compileWheres(QueryBuilderInterface $query): string
+    {
+        $sql = $this->compileWheresToArray($query);
+
+        if (count($sql = $this->compileWheresToArray($query)) > 0) {
+            return $this->concatenateWhereClauses($query, $sql);
+        }
+
+        return '';
+    }
+
+    protected function concatenateWhereClauses(QueryBuilderInterface $query,array $sql): string
+    {
+        $conjunction = $query instanceof JoinClause ? 'on' : 'where';
+
+        return $conjunction.' '.$this->removeLeadingBoolean(implode(' ', $sql));
+    }
+
+    protected function removeLeadingBoolean(string $value): string
+    {
+        return preg_replace('/and |or /i', '', $value, 1);
+    }
+
+    protected function compileWheresToArray(QueryBuilderInterface $query): array
+    {
+        return collect($query->wheres)->map(function ($where) use ($query) {
+            return $where['boolean'].' '.$this->{"where{$where['type']}"}($query, $where);
+        })->all();
+    }
+
+    protected function whereBasic(QueryBuilderInterface $query,array $where): string
+    {
+        $value = $this->parameter($where['value']);
+
+        $operator = str_replace('?', '??', $where['operator']);
+
+        return $this->wrap($where['column']).' '.$operator.' '.$value;
     }
 
     protected function compileFrom(QueryBuilderInterface $query, $table): string
@@ -155,6 +232,11 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         return implode(' ', array_filter($segments, function ($value) {
             return (string)$value !== '';
         }));
+    }
+
+    public function parameter(mixed $value): mixed
+    {
+        return $this->isExpression($value) ? $this->getValue($value) : '?';
     }
 
     public function getDateFormat(): string

@@ -54,7 +54,11 @@ abstract class SchemaGrammar extends Grammar
         }
 
         return $sql;
+
+
     }
+
+
 
     public function wrapTable(string|ExpressionInterface|Blueprint|Stringable $table): string
     {

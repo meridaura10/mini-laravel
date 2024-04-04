@@ -17,4 +17,11 @@ trait ForwardsCallsTrait
             dd($exception->getMessage());
         }
     }
+
+    protected function forwardDecoratedCallTo(object $object,string $method,array $parameters): mixed
+    {
+        $result = $this->forwardCallTo($object, $method, $parameters);
+
+        return $result === $object ? $this : $result;
+    }
 }

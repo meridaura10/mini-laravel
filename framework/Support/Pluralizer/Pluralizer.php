@@ -32,6 +32,13 @@ class Pluralizer
         return static::matchCase($plural, $value);
     }
 
+    public static function singular(string $value): string
+    {
+        $singular = static::inflector()->singularize($value);
+
+        return static::matchCase($singular, $value);
+    }
+
     protected static function matchCase($value, $comparison): string
     {
         $functions = ['mb_strtolower', 'mb_strtoupper', 'ucfirst', 'ucwords'];

@@ -80,7 +80,6 @@ class Migrator
         $this->write(Info::class, 'Rolling back migrations.');
 
 
-
         foreach ($migrations as $migration){
             $migration = (object) $migration;
 

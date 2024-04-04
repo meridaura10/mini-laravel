@@ -29,6 +29,14 @@ if (! function_exists('app')) {
     }
 }
 
+
+if (! function_exists('head')) {
+    function head(array $array): array
+    {
+        return reset($array);
+    }
+}
+
 if (! function_exists('app_path')) {
 
     function app_path(string $path = ''): string

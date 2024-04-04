@@ -100,6 +100,28 @@ class Connection implements ConnectionInterface
         return $this->queryGrammar;
     }
 
+    public function delete(string $query,array $bindings = []): int
+    {
+        return $this->affectingStatement($query, $bindings);
+    }
+
+    public function affectingStatement(string $query,array $bindings = []): int
+    {
+        return $this->run($query, $bindings, function ($query, $bindings) {
+            $statement = $this->getPdo()->prepare($query);
+
+            $this->bindValues($statement, $this->prepareBindings($bindings));
+
+            $statement->execute();
+
+            $this->recordsHaveBeenModified(
+                ($count = $statement->rowCount()) > 0
+            );
+
+            return $count;
+        });
+    }
+
     public function select($query, $bindings = [],bool $useReadPdo = true, $test = false)
     {
         return $this->run($query, $bindings, function ($query, $bindings) use ($useReadPdo, $test){
@@ -162,24 +184,34 @@ class Connection implements ConnectionInterface
         });
     }
 
-    protected function bindValues(\PDOStatement $statement, array $bindings): void
-    {
-        foreach ($bindings as $key => $value) {
-            $statement->bindValue(
-                is_string($key) ? $key : $key + 1,
-                $value,
-                match (true) {
-                    is_int($value) => PDO::PARAM_INT,
-                    is_resource($value) => PDO::PARAM_LOB,
-                    default => PDO::PARAM_STR
-                },
-            );
+        protected function bindValues(\PDOStatement $statement, array $bindings): void
+        {
+            foreach ($bindings as $key => $value) {
+                $statement->bindValue(
+                    is_string($key) ? $key : $key + 1,
+                    $value,
+                    match (true) {
+                        is_int($value) => PDO::PARAM_INT,
+                        is_resource($value) => PDO::PARAM_LOB,
+                        default => PDO::PARAM_STR
+                    },
+                );
+            }
         }
-    }
 
     protected function prepareBindings(array $bindings): array
     {
-        return array_values($bindings);
+        $grammar = $this->getQueryGrammar();
+
+        foreach ($bindings as $key => $value) {
+            if ($value instanceof \DateTimeInterface) {
+                $bindings[$key] = $value->format($grammar->getDateFormat());
+            } elseif (is_bool($value)) {
+                $bindings[$key] = (int) $value;
+            }
+        }
+
+        return $bindings;
     }
 
     public function recordsHaveBeenModified(bool $value = true): void
@@ -205,7 +237,7 @@ class Connection implements ConnectionInterface
         try {
             return $callback($query, $bindings);
         } catch (QueryException $e) {
-            dd($e);
+            dd($e->getMessage(),'1');
             //            $result = $this->handleQueryException(
             //                $e, $query, $bindings, $callback
             //            );

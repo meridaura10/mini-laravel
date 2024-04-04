@@ -244,6 +244,11 @@ class Blueprint
         return $this->addColumn('timestamp', $column, compact('precision'));
     }
 
+    public function unique(array|string $columns,?string $name = null,?string $algorithm = null): Fluent
+    {
+        return $this->indexCommand('unique', $columns, $name, $algorithm);
+    }
+
     public function foreignIdFor(Model|string $model, ?string $column = null): ForeignIdColumnDefinition
     {
         if(is_string($model)){

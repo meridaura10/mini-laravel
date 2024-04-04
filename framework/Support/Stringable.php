@@ -2,6 +2,8 @@
 
 namespace Framework\Kernel\Support;
 
+use mysql_xdevapi\SqlStatementResult;
+
 class Stringable
 {
     protected string $value = '';
@@ -24,6 +26,16 @@ class Stringable
     public function plural(int $count = 2): static
     {
         return new static(Str::plural($this->value, $count));
+    }
+
+    public function replaceFirst(string $search,string $replace): static
+    {
+        return new static(Str::replaceFirst($search, $replace, $this->value));
+    }
+
+    public function finish(string $cap): static
+    {
+        return new static(Str::finish($this->value, $cap));
     }
 
     public function __toString()

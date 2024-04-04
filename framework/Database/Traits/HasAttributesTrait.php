@@ -101,4 +101,38 @@ trait HasAttributesTrait
 
         return false;
     }
+
+    public function getAttribute(?string $key): mixed
+    {
+        if (! $key) {
+            return null;
+        }
+
+        if(array_key_exists($key, $this->attributes)){
+            return $this->attributes[$key];
+        }
+
+        return null;
+        // If the attribute exists in the attribute array or has a "get" mutator we will
+        // get the attribute's value. Otherwise, we will proceed as if the developers
+        // are asking for a relationship's value. This covers both types of values.
+//        if (array_key_exists($key, $this->attributes) ||
+//            array_key_exists($key, $this->casts) ||
+//            $this->hasGetMutator($key) ||
+//            $this->hasAttributeMutator($key) ||
+//            $this->isClassCastable($key)) {
+//            return $this->getAttributeValue($key);
+//        }
+//
+//        // Here we will determine if the model base class itself contains this given key
+//        // since we don't want to treat any of those methods as relationships because
+//        // they are all intended as helper methods and none of these are relations.
+//        if (method_exists(self::class, $key)) {
+//            return $this->throwMissingAttributeExceptionIfApplicable($key);
+//        }
+//
+//        return $this->isRelation($key) || $this->relationLoaded($key)
+//            ? $this->getRelationValue($key)
+//            : $this->throwMissingAttributeExceptionIfApplicable($key);
+    }
 }

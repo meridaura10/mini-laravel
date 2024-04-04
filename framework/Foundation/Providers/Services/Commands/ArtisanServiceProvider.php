@@ -4,6 +4,7 @@ namespace Framework\Kernel\Foundation\Providers\Services\Commands;
 
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ControllerMakeCommand;
+use Framework\Kernel\Console\Commands\Artisan\Dev\FactoryMakeCommand;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ModelMakeCommand;
 use Framework\Kernel\Console\Commands\Database\Seeders\SeedCommand;
 use Framework\Kernel\Console\Commands\Database\Seeders\SeederMakeCommand;
@@ -20,6 +21,7 @@ class ArtisanServiceProvider extends ServiceProvider implements DeferrableProvid
         'ControllerMake' => ControllerMakeCommand::class,
         'ModelMake' => ModelMakeCommand::class,
         'SeederMake' => SeederMakeCommand::class,
+        'FactoryMake' => FactoryMakeCommand::class,
     ];
 
     public function register(): void

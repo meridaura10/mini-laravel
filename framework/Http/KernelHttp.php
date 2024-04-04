@@ -37,7 +37,11 @@ class KernelHttp implements KernelInterface
 
     public function handle(RequestInterface $request): ResponseInterface
     {
-        $response = $this->sendRequestThroughRouter($request);
+        try {
+            $response = $this->sendRequestThroughRouter($request);
+        }catch (\Exception $exception){
+            dd($exception);
+        }
 
         return $response;
     }

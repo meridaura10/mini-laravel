@@ -10,6 +10,7 @@ use Framework\Kernel\Database\Exceptions\MassAssignmentException;
 use Framework\Kernel\Database\Query\Support\Traits\ForwardsCallsTrait;
 use Framework\Kernel\Database\Traits\GuardsAttributesTrait;
 use Framework\Kernel\Database\Traits\HasAttributesTrait;
+use Framework\Kernel\Database\Traits\HasRelationshipsTrait;
 use Framework\Kernel\Database\Traits\HasTimestampsTrait;
 use Framework\Kernel\Support\Str;
 
@@ -18,7 +19,8 @@ abstract class Model
     use ForwardsCallsTrait,
         GuardsAttributesTrait,
         HasAttributesTrait,
-        HasTimestampsTrait;
+        HasTimestampsTrait,
+        HasRelationshipsTrait;
 
     protected static ConnectionResolverInterface $resolver;
 
@@ -29,6 +31,8 @@ abstract class Model
     protected array $withCount = [];
 
     protected static array $booted = [];
+
+    protected static array $traitInitializers = [];
 
     protected static array $globalScopes = [];
 
@@ -41,6 +45,40 @@ abstract class Model
     protected string $primaryKey = 'id';
 
     protected string $keyType = 'int';
+
+    public function __construct(array $attributes = [])
+    {
+        $this->bootIfNotBooted();
+
+        $this->initializeTraits();
+
+        $this->syncOriginal();
+
+        $this->fill($attributes);
+    }
+
+    protected function bootIfNotBooted(): void
+    {
+        if (! isset(static::$booted[static::class])) {
+            static::$booted[static::class] = true;
+//
+//            static::booting();
+//            static::boot();
+//            static::booted();
+
+        }
+    }
+
+    protected function initializeTraits(): void
+    {
+        if(!array_key_exists(static::class,static::$traitInitializers)){
+            return;
+        }
+
+        foreach (static::$traitInitializers[static::class] as $method) {
+            $this->{$method}();
+        }
+    }
 
     public static function setConnectionResolver(ConnectionResolverInterface $resolver): void
     {
@@ -112,8 +150,7 @@ abstract class Model
         }
 
         if ($this->exists) {
-            $saved = $this->isDirty() ?
-                $this->performUpdate($query) : true;
+            $saved = !$this->isDirty() || $this->performUpdate($query);
         } else {
             $saved = $this->performInsert($query);
 
@@ -229,6 +266,22 @@ abstract class Model
         return $this->registerGlobalScopes($this->newQueryWithoutScopes());
     }
 
+
+    public function newQueryWithoutScopes(): BuilderInterface
+    {
+        return $this->newModelQuery()
+            ->with($this->with)
+            ->withCount($this->withCount);
+    }
+
+    public static function with(array|string $relations): BuilderInterface
+    {
+        return static::query()->with(
+            is_string($relations) ? func_get_args() : $relations
+        );
+    }
+
+
     public function registerGlobalScopes(BuilderInterface $builder): BuilderInterface
     {
         //        foreach ($this->getGlobalScopes() as $identifier => $scope) {
@@ -248,13 +301,6 @@ abstract class Model
     public function getIncrementing(): bool
     {
         return $this->incrementing;
-    }
-
-    protected function newQueryWithoutScopes(): BuilderInterface
-    {
-        return $this->newModelQuery();
-        //            ->with($this->with)
-        //            ->withCount($this->withCount);
     }
 
     protected function newModelQuery(): BuilderInterface
@@ -321,6 +367,11 @@ abstract class Model
     public function __set($key, $value)
     {
         $this->setAttribute($key, $value);
+    }
+
+    public function __get(string $key): mixed
+    {
+        return $this->getAttribute($key);
     }
 
     public function __call($method, $parameters): mixed

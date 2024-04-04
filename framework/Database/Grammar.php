@@ -12,6 +12,8 @@ abstract class Grammar
 {
     protected ?ConnectionInterface $connection = null;
 
+    protected array $operators = [];
+
     public function setConnection(ConnectionInterface $connection): static
     {
         $this->connection = $connection;
@@ -86,5 +88,10 @@ abstract class Grammar
     public function compileInsertGetId(QueryBuilder $query, array $values, string $sequence): string
     {
         return $this->compileInsert($query, $values);
+    }
+
+    public function getOperators(): array
+    {
+        return $this->operators;
     }
 }

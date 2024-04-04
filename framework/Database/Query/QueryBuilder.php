@@ -9,11 +9,14 @@ use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
 use Framework\Kernel\Database\Eloquent\Builder;
+use Framework\Kernel\Database\Eloquent\Relations\Relation;
+use Framework\Kernel\Database\Expression;
 use Framework\Kernel\Database\Grammar;
 use Framework\Kernel\Database\Query\Processors\Processor;
 use Framework\Kernel\Database\Traits\BuildsQueriesTrait;
 use Framework\Kernel\Support\Arr;
 use Framework\Kernel\Support\Collection;
+use Framework\Kernel\View\Exceptions\InvalidArgumentException;
 
 class QueryBuilder implements QueryBuilderInterface
 {
@@ -31,7 +34,18 @@ class QueryBuilder implements QueryBuilderInterface
         'unionOrder' => [],
     ];
 
+    public array $operators = [
+        '=', '<', '>', '<=', '>=', '<>', '!=', '<=>',
+        'like', 'like binary', 'not like', 'ilike',
+        '&', '|', '^', '<<', '>>', '&~', 'is', 'is not',
+        'rlike', 'not rlike', 'regexp', 'not regexp',
+        '~', '~*', '!~', '!~*', 'similar to',
+        'not similar to', 'not ilike', '~~*', '!~~*',
+    ];
+
     public array $havings = [];
+
+    public array $wheres = [];
 
     public array $aggregate = [];
     public ?array $orders = null;
@@ -136,6 +150,8 @@ class QueryBuilder implements QueryBuilderInterface
     {
         $sql = $this->grammar->compileInsertGetId($this, $values, $sequence);
 
+        $values = $this->cleanBindings($values);
+
         return $this->processor->processInsertGetId($this, $sql, $values, $sequence);
     }
 
@@ -167,7 +183,85 @@ class QueryBuilder implements QueryBuilderInterface
         return $value instanceof self ||
             $value instanceof BuilderInterface ||
             $value instanceof Closure;
-//            $value instanceof Relation ||
+//            $value instanceof Relation;
+    }
+
+    public function where(string|ExpressionInterface $column,mixed $operator = null,mixed $value = null,string $boolean = 'and'): static
+    {
+        if ($column instanceof ExpressionInterface) {
+            $type = 'Expression';
+
+            $this->wheres[] = compact('type', 'column', 'boolean');
+
+            return $this;
+        }
+
+        [$value, $operator] = $this->prepareValueAndOperator(
+            $value, $operator, func_num_args() === 2
+        );
+
+        if ($this->invalidOperator($operator)) {
+            [$value, $operator] = [$operator, '='];
+        }
+
+        $type = 'Basic';
+
+
+        $this->wheres[] = compact(
+            'type', 'column', 'operator', 'value', 'boolean'
+        );
+
+        if (! $value instanceof ExpressionInterface) {
+            $this->addBinding($this->flattenValue($value));
+        }
+
+        return $this;
+    }
+
+    protected function flattenValue(mixed $value): mixed
+    {
+        return is_array($value) ? head(Arr::flatten($value)) : $value;
+    }
+
+    public function addBinding(mixed $value,string $type = 'where'): static
+    {
+        if (! array_key_exists($type, $this->bindings)) {
+            throw new InvalidArgumentException("Invalid binding type: {$type}.");
+        }
+
+        if (is_array($value)) {
+            $this->bindings[$type] = array_values(array_map(
+                [$this, 'castBinding'],
+                array_merge($this->bindings[$type], $value),
+            ));
+        } else {
+            $this->bindings[$type][] = $this->castBinding($value);
+        }
+
+        return $this;
+    }
+
+    protected function invalidOperator(string $operator): string
+    {
+        return (! in_array(strtolower($operator), $this->operators, true) &&
+                ! in_array(strtolower($operator), $this->grammar->getOperators(), true));
+    }
+
+    public function prepareValueAndOperator(mixed $value,string $operator,bool $useDefault = false): array
+    {
+        if ($useDefault) {
+            return [$operator, '='];
+        } elseif ($this->invalidOperatorAndValue($operator, $value)) {
+            throw new \InvalidArgumentException('Illegal operator and value combination.');
+        }
+
+        return [$value, $operator];
+    }
+
+    protected function invalidOperatorAndValue(string $operator,mixed $value): bool
+    {
+        return is_null($value) && in_array($operator, $this->operators) &&
+            ! in_array($operator, ['=', '<>', '!=']);
     }
 
     public function pluck(string|ExpressionInterface $column, ?string $key = null): Collection
@@ -210,6 +304,20 @@ class QueryBuilder implements QueryBuilderInterface
 
         return collect($results);
     }
+
+    public function delete(mixed $id = null): int
+    {
+        if (! is_null($id)) {
+            $this->where($this->from.'.id', '=', $id);
+        }
+
+        return $this->connection->delete(
+            $this->grammar->compileDelete($this), $this->cleanBindings(
+            $this->grammar->prepareBindingsForDelete($this->bindings)
+        ));
+    }
+
+
 
     protected function stripTableForPluck(?string $column = null): ?string
     {

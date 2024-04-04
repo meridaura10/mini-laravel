@@ -22,4 +22,20 @@ trait EnumeratesValuesTrait
 
         return fn ($item) => data_get($item, $value);
     }
+
+    public function pipe(callable $callback): mixed
+    {
+        return $callback($this);
+    }
+
+    public function reduce(callable $callback,mixed $initial = null): mixed
+    {
+        $result = $initial;
+
+        foreach ($this as $key => $value) {
+            $result = $callback($result, $value, $key);
+        }
+
+        return $result;
+    }
 }

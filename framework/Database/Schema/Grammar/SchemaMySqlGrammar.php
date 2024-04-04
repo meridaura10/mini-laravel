@@ -31,6 +31,22 @@ class SchemaMySqlGrammar extends SchemaGrammar
         );
     }
 
+    public function compileUnique(Blueprint $blueprint, Fluent $command): string
+    {
+        return $this->compileKey($blueprint, $command, 'unique');
+    }
+
+    protected function compileKey(Blueprint $blueprint, Fluent $command,string $type): string
+    {
+        return sprintf('alter table %s add %s %s%s(%s)',
+            $this->wrapTable($blueprint),
+            $type,
+            $this->wrap($command->index),
+            $command->algorithm ? ' using '.$command->algorithm : '',
+            $this->columnize($command->columns)
+        );
+    }
+
     public function compileAutoIncrementStartingValues(Blueprint $blueprint, Fluent $command)
     {
         if ($command->column->autoIncrement

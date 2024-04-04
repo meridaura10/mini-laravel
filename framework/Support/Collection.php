@@ -13,7 +13,7 @@ use Traversable;
 use UnitEnum;
 use WeakMap;
 
-class Collection implements ArrayAccess
+class Collection implements ArrayAccess, Enumerable
 {
     use EnumeratesValuesTrait;
 
@@ -32,6 +32,7 @@ class Collection implements ArrayAccess
 
         return match (true) {
             $items instanceof WeakMap => throw new InvalidArgumentException('Collections can not be created using instances of WeakMap.'),
+            $items instanceof Enumerable => $items->all(),
             $items instanceof Arrayable => $items->toArray(),
             $items instanceof Traversable => iterator_to_array($items),
             $items instanceof Jsonable => json_decode($items->toJson(), true),
@@ -39,6 +40,78 @@ class Collection implements ArrayAccess
             $items instanceof UnitEnum => [$items],
             default => (array) $items,
         };
+    }
+
+    public static function wrap(mixed $value): static
+    {
+        return $value instanceof Enumerable
+            ? new static($value)
+            : new static(Arr::wrap($value));
+    }
+
+    public function merge(iterable $items): static
+    {
+        return new static(array_merge($this->items, $this->getArrayableItems($items)));
+    }
+
+    public function each(callable $callback): static
+    {
+        foreach ($this as $key => $item) {
+            if ($callback($item, $key) === false) {
+                break;
+            }
+        }
+
+        return $this;
+    }
+
+    public function flatten(int|float $depth = INF): static
+    {
+        return new static(Arr::flatten($this->items, $depth));
+    }
+
+    public function groupBy($groupBy, $preserveKeys = false)
+    {
+        if (! $this->useAsCallable($groupBy) && is_array($groupBy)) {
+            $nextGroups = $groupBy;
+
+            $groupBy = array_shift($nextGroups);
+        }
+
+        $groupBy = $this->valueRetriever($groupBy);
+
+        $results = [];
+
+        foreach ($this->items as $key => $value) {
+            $groupKeys = $groupBy($value, $key);
+
+            if (! is_array($groupKeys)) {
+                $groupKeys = [$groupKeys];
+            }
+
+            foreach ($groupKeys as $groupKey) {
+                $groupKey = match (true) {
+                    is_bool($groupKey) => (int) $groupKey,
+                    $groupKey instanceof \BackedEnum => $groupKey->value,
+                    $groupKey instanceof \Stringable => (string) $groupKey,
+                    default => $groupKey,
+                };
+
+                if (! array_key_exists($groupKey, $results)) {
+                    $results[$groupKey] = new static;
+                }
+
+                $results[$groupKey]->offsetSet($preserveKeys ? $key : null, $value);
+            }
+        }
+
+        $result = new static($results);
+
+        if (! empty($nextGroups)) {
+            return $result->map->groupBy($nextGroups, $preserveKeys);
+        }
+
+        return $result;
     }
 
 
@@ -50,6 +123,27 @@ class Collection implements ArrayAccess
     public function transform(callable $callback): static
     {
         $this->items = $this->map($callback)->all();
+
+        return $this;
+    }
+
+    public function concat(iterable $source): static
+    {
+        $result = new static($this);
+        foreach ($source as $item) {
+            $result->push($item);
+        }
+
+        return $result;
+    }
+
+
+
+    public function push(...$values): static
+    {
+        foreach ($values as $value) {
+            $this->items[] = $value;
+        }
 
         return $this;
     }
@@ -287,5 +381,15 @@ class Collection implements ArrayAccess
     public function offsetUnset($offset): void
     {
         unset($this->items[$offset]);
+    }
+
+    public function toArray(): array
+    {
+        return $this->map(fn ($value) => $value instanceof Arrayable ? $value->toArray() : $value)->all();
+    }
+
+    public function getIterator(): Traversable
+    {
+        return new \ArrayIterator($this->items);
     }
 }
