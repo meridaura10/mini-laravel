@@ -37,6 +37,14 @@ if (! function_exists('head')) {
     }
 }
 
+
+if (! function_exists('last')) {
+    function last(array $array): mixed
+    {
+        return end($array);
+    }
+}
+
 if (! function_exists('app_path')) {
 
     function app_path(string $path = ''): string

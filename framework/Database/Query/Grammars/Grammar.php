@@ -58,7 +58,7 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         return "delete from {$table} {$where}";
     }
 
-    public function compileInsert(QueryBuilder $query, array $values): string
+    public function compileInsert(QueryBuilderInterface $query, array $values): string
     {
         $table = $this->wrapTable($query->from);
 
@@ -77,6 +77,15 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         }, $values));
 
         return "insert into $table ($columns) values $parameters";
+    }
+
+    protected function whereInRaw(QueryBuilderInterface $query, array $where): string
+    {
+        if (! empty($where['values'])) {
+            return $this->wrap($where['column']).' in ('.implode(', ', $where['values']).')';
+        }
+
+        return '0 = 1';
     }
 
     public function compileSelect(QueryBuilder $query): string

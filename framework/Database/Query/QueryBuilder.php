@@ -4,6 +4,7 @@ namespace Framework\Kernel\Database\Query;
 
 use BackedEnum;
 use Closure;
+use Framework\Kernel\Contracts\Support\Arrayable;
 use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ExpressionInterface;
@@ -129,6 +130,33 @@ class QueryBuilder implements QueryBuilderInterface
         return $result;
     }
 
+    public function select($columns = ['*']): static
+    {
+        $this->columns = [];
+        $this->bindings['select'] = [];
+
+        $columns = is_array($columns) ? $columns : func_get_args();
+
+        foreach ($columns as $as => $column) {
+            if (is_string($as) && $this->isQueryable($column)) {
+                $this->selectSub($column, $as);
+            } else {
+                $this->columns[] = $column;
+            }
+        }
+
+        return $this;
+    }
+
+//    public function selectSub(QueryBuilderInterface|BuilderInterface|string $query,string $as): static
+//    {
+//        [$query, $bindings] = $this->createSub($query);
+//
+//        return $this->selectRaw(
+//            '('.$query.') as '.$this->grammar->wrap($as), $bindings
+//        );
+//    }
+
     protected function runSelect(): array
     {
         return $this->connection->select(
@@ -183,7 +211,6 @@ class QueryBuilder implements QueryBuilderInterface
         return $value instanceof self ||
             $value instanceof BuilderInterface ||
             $value instanceof Closure;
-//            $value instanceof Relation;
     }
 
     public function where(string|ExpressionInterface $column,mixed $operator = null,mixed $value = null,string $boolean = 'and'): static
@@ -237,6 +264,25 @@ class QueryBuilder implements QueryBuilderInterface
         } else {
             $this->bindings[$type][] = $this->castBinding($value);
         }
+
+        return $this;
+    }
+
+    public function whereIntegerInRaw(string $column, Arrayable|array $values, string $boolean = 'and', bool $not = false): static
+    {
+        $type = $not ? 'NotInRaw' : 'InRaw';
+
+        if ($values instanceof Arrayable) {
+            $values = $values->toArray();
+        }
+
+        $values = Arr::flatten($values);
+
+        foreach ($values as &$value) {
+            $value = (int) $value;
+        }
+
+        $this->wheres[] = compact('type', 'column', 'values', 'boolean');
 
         return $this;
     }

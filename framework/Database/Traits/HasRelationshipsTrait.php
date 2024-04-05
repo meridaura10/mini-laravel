@@ -11,6 +11,15 @@ use Framework\Kernel\Support\Str;
 
 trait HasRelationshipsTrait
 {
+    protected array $relations = [];
+
+    public function setRelation(string $relation,mixed $value): static
+    {
+        $this->relations[$relation] = $value;
+
+        return $this;
+    }
+
     public function newRelatedInstance(string $class): Model
     {
         return tap(new $class, function ($instance) {

@@ -5,6 +5,8 @@ namespace Framework\Kernel\Database\Eloquent;
 use Closure;
 use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
+use Framework\Kernel\Database\Eloquent\Relations\Relation;
+use Framework\Kernel\Database\Exceptions\RelationNotFoundException;
 use Framework\Kernel\Database\Query\Support\Traits\ForwardsCallsTrait;
 use Framework\Kernel\Database\Traits\BuildsQueriesTrait;
 
@@ -51,7 +53,8 @@ class Builder implements BuilderInterface
 
     public function __construct(
         protected QueryBuilderInterface $query,
-    ) {
+    )
+    {
 
     }
 
@@ -84,7 +87,7 @@ class Builder implements BuilderInterface
         $builder = $this->applyScopes();
 
         if (count($models = $builder->getModels($columns)) > 0) {
-            //            $models = $builder->eagerLoadRelations($models);
+            $models = $builder->eagerLoadRelations($models);
         }
 
         return $builder->getModel()->newCollection($models);
@@ -97,12 +100,75 @@ class Builder implements BuilderInterface
         )->all();
     }
 
+    public function eagerLoadRelations(array $models): array
+    {
+        foreach ($this->eagerLoad as $name => $constraints) {
+            if (!str_contains($name, '.')) {
+                $models = $this->eagerLoadRelation($models, $name, $constraints);
+            }
+        }
+
+        return $models;
+    }
+
+    protected function eagerLoadRelation(array $models, string $name, Closure $constraints): array
+    {
+        $relation = $this->getRelation($name);
+
+        $relation->addEagerConstraints($models);
+
+        $constraints($relation);
+
+        return $relation->match(
+            $relation->initRelation($models, $name),
+            $relation->getEager(), $name
+        );
+    }
+
+    public function getRelation(string $name): Relation
+    {
+        $relation = Relation::noConstraints(function () use ($name) {
+            try {
+                return $this->getModel()->newInstance()->$name();
+            } catch (\BadMethodCallException) {
+                throw RelationNotFoundException::make($this->getModel(), $name);
+            }
+        });
+
+        $nested = $this->relationsNestedUnder($name);
+
+        if (count($nested) > 0) {
+            $relation->getQuery()->with($nested);
+        }
+
+        return $relation;
+    }
+
+    protected function relationsNestedUnder(string $relation): array
+    {
+        $nested = [];
+
+        foreach ($this->eagerLoad as $name => $constraints) {
+            if ($this->isNestedUnder($relation, $name)) {
+                $nested[substr($name, strlen($relation . '.'))] = $constraints;
+            }
+        }
+
+        return $nested;
+    }
+
+
+    protected function isNestedUnder(string $relation, string $name): string
+    {
+        return str_contains($name, '.') && str_starts_with($name, $relation . '.');
+    }
+
     public function hydrate(array $items): EloquentCollection
     {
         $instance = $this->newModelInstance();
 
         return $instance->newCollection(array_map(function ($item) use ($instance) {
-            $model = $instance->newFromBuilder((array) $item);
+            $model = $instance->newFromBuilder((array)$item);
 
             //            if (count($items) > 1) {
             //                $model->preventsLazyLoading = Model::preventsLazyLoading();
@@ -148,13 +214,11 @@ class Builder implements BuilderInterface
 
         $results = [];
 
-        foreach ($this->prepareNestedWithRelationships($relations) as $name => $constraints){
+        foreach ($this->prepareNestedWithRelationships($relations) as $name => $constraints) {
             $results = $this->addNestedWiths($name, $results);
 
             $results[$name] = $constraints;
         }
-
-        dd($results);
 
         return $results;
     }
@@ -166,8 +230,9 @@ class Builder implements BuilderInterface
         foreach (explode('.', $name) as $segment) {
             $progress[] = $segment;
 
-            if (! isset($results[$last = implode('.', $progress)])) {
-                $results[$last] = static function () {};
+            if (!isset($results[$last = implode('.', $progress)])) {
+                $results[$last] = static function () {
+                };
             }
         }
 
@@ -182,8 +247,8 @@ class Builder implements BuilderInterface
             $prefix .= '.';
         }
 
-        foreach ($relations as $key => $value){
-            if (! is_string($key) || ! is_array($value)) {
+        foreach ($relations as $key => $value) {
+            if (!is_string($key) || !is_array($value)) {
                 continue;
             }
         }
@@ -193,11 +258,10 @@ class Builder implements BuilderInterface
                 [$key, $value] = $this->convertNameToCallableArray($value);
             }
 
-
-
-            $preparedRelationships[$prefix.$key] = $this->combineConstraints([
+            $preparedRelationships[$prefix . $key] = $this->combineConstraints([
                 $value,
-                $preparedRelationships[$prefix.$key] ?? static function () {},
+                $preparedRelationships[$prefix . $key] ?? static function () {
+                },
             ]);
         }
 
@@ -217,7 +281,8 @@ class Builder implements BuilderInterface
 
     protected function convertNameToCallableArray(string $name): array
     {
-        return [$name, static function () {}];
+        return [$name, static function () {
+        }];
     }
 
 
