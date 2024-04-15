@@ -12,4 +12,9 @@ $app->singleton(
     \App\Console\Kernel::class
 );
 
+$app->singleton(
+    \Framework\Kernel\Foundation\Exceptions\Contracts\ExceptionHandlerInterface::class,
+    App\Exceptions\Handler::class
+);
+
 return $app;

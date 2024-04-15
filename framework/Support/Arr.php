@@ -33,6 +33,64 @@ class Arr
         return $array;
     }
 
+    public static function dot(iterable $array,string $prepend = ''): array
+    {
+        $results = [];
+
+        foreach ($array as $key => $value) {
+            if (is_array($value) && ! empty($value)) {
+                $results = array_merge($results, static::dot($value, $prepend.$key.'.'));
+            } else {
+                $results[$prepend.$key] = $value;
+            }
+        }
+
+        return $results;
+    }
+
+    public static function last($array, callable $callback = null,mixed $default = null): mixed
+    {
+        if (is_null($callback)) {
+            return empty($array) ? value($default) : end($array);
+        }
+
+        return static::first(array_reverse($array, true), $callback, $default);
+    }
+
+    public static function pluck(iterable $array,array|int|null|string $value,null|array|string $key = null): array
+    {
+        $results = [];
+
+        [$value, $key] = static::explodePluckParameters($value, $key);
+
+        foreach ($array as $item) {
+            $itemValue = data_get($item, $value);
+
+            if (is_null($key)) {
+                $results[] = $itemValue;
+            } else {
+                $itemKey = data_get($item, $key);
+
+                if (is_object($itemKey) && method_exists($itemKey, '__toString')) {
+                    $itemKey = (string) $itemKey;
+                }
+
+                $results[$itemKey] = $itemValue;
+            }
+        }
+
+        return $results;
+    }
+
+    protected static function explodePluckParameters(array|string $value, array|null|string $key): array
+    {
+        $value = is_string($value) ? explode('.', $value) : $value;
+
+        $key = is_null($key) || is_array($key) ? $key : explode('.', $key);
+
+        return [$value, $key];
+    }
+
     public static function mapWithKeys(array $array, callable $callback): array
     {
         $result = [];
@@ -184,7 +242,7 @@ class Arr
         return $array;
     }
 
-    public static function get(ArrayAccess|array $array, string|int|null $key, mixed $default = null)
+    public static function get(mixed $array, string|int|null $key, mixed $default = null)
     {
         if (! static::accessible($array)) {
             return value($default);
@@ -245,8 +303,13 @@ class Arr
         return is_array($value) || $value instanceof ArrayAccess;
     }
 
-    public static function exists(ArrayAccess|array $array, string $key): bool
+    public static function exists(ArrayAccess|array $array, int|string $key): bool
     {
+
+        if ($array instanceof Enumerable) {
+            return $array->has($key);
+        }
+
         if ($array instanceof ArrayAccess) {
             return $array->offsetExists($key);
         }

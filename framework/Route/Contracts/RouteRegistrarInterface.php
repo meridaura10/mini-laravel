@@ -10,5 +10,7 @@ interface RouteRegistrarInterface
 
     public function post(string $uri, string|array $action): Route;
 
-    public function prefix(string $uri): RouteGroupInterface;
+    public function substituteBindings(Route $route): Route;
+
+    public function substituteImplicitBindings(Route $route): mixed;
 }

@@ -24,6 +24,11 @@ class Collection implements ArrayAccess, Enumerable
         $this->items = $this->getArrayableItems($items);
     }
 
+    public function last(?callable $callback = null,mixed $default = null): mixed
+    {
+        return Arr::last($this->items, $callback, $default);
+    }
+
     protected function getArrayableItems(mixed $items): array
     {
         if (is_array($items)) {
@@ -40,6 +45,11 @@ class Collection implements ArrayAccess, Enumerable
             $items instanceof UnitEnum => [$items],
             default => (array) $items,
         };
+    }
+
+    public function pluck(array|string|int $value,?string $key = null): static
+    {
+        return new static(Arr::pluck($this->items, $value, $key));
     }
 
     public static function wrap(mixed $value): static
@@ -391,5 +401,25 @@ class Collection implements ArrayAccess, Enumerable
     public function getIterator(): Traversable
     {
         return new \ArrayIterator($this->items);
+    }
+
+    public function jsonSerialize(): array
+    {
+        return array_map(function ($value) {
+            if ($value instanceof JsonSerializable) {
+                return $value->jsonSerialize();
+            } elseif ($value instanceof Jsonable) {
+                return json_decode($value->toJson(), true);
+            } elseif ($value instanceof Arrayable) {
+                return $value->toArray();
+            }
+
+            return $value;
+        }, $this->all());
+    }
+
+    public function toJson(int $options = 0): string
+    {
+        return json_encode($this->jsonSerialize(), $options);
     }
 }

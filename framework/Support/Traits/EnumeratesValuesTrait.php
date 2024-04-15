@@ -38,4 +38,9 @@ trait EnumeratesValuesTrait
 
         return $result;
     }
+
+    public function isNotEmpty(): bool
+    {
+        return ! $this->isEmpty();
+    }
 }

@@ -12,17 +12,20 @@ class Filesystem implements FilesystemInterface
         return file_exists($path);
     }
 
-    public function getRequire($path, array $data = [])
+    public function getRequire($path, array $data = []): mixed
     {
-        if ($this->isFile($path));
-        $__path = $path;
-        $__data = $data;
+        if ($this->isFile($path)) {
+            $__path = $path;
+            $__data = $data;
 
-        return (static function () use ($__path, $__data) {
-            extract($__data, EXTR_SKIP);
+            return (static function () use ($__path, $__data) {
+                extract($__data, EXTR_SKIP);
 
-            return require $__path;
-        })();
+                return require $__path;
+            })();
+        }
+
+        throw new FileNotFoundException("File does not exist at path {$path}.");
     }
 
     public function isFile(string $file): bool
@@ -52,6 +55,11 @@ class Filesystem implements FilesystemInterface
     public function put(string $path, string $contents, bool $lock = false): int|bool
     {
         return file_put_contents($path, $contents, $lock ? LOCK_EX : 0);
+    }
+
+    public function lastModified(string $path): false|int
+    {
+        return filemtime($path);
     }
 
     public function get(string $path, bool $lock = false): string

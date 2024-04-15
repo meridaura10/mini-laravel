@@ -21,4 +21,5 @@ interface ViewFactoryInterface
     public function callComposer(ViewInterface $view): void;
 
     public function getShared(): array;
+
 }

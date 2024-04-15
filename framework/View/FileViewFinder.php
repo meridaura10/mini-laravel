@@ -14,7 +14,7 @@ class FileViewFinder implements FileViewFinderInterface
 
     protected array $hints = [];
 
-    protected array $extensions = ['php'];
+    protected array $extensions = ['blade.php', 'php'];
 
     public function __construct(
         protected FilesystemInterface $files,
@@ -77,6 +77,7 @@ class FileViewFinder implements FileViewFinderInterface
     {
         foreach ($paths as $path) {
             foreach ($this->getPossibleViewFiles($name) as $file) {
+                $viewPath = $path.'/'.$file;
                 if ($this->files->exists($viewPath = $path.'/'.$file)) {
                     return $viewPath;
                 }
@@ -90,4 +91,16 @@ class FileViewFinder implements FileViewFinderInterface
     {
         return array_map(fn ($extension) => str_replace('.', '/', $name).'.'.$extension, $this->extensions);
     }
+
+    public function addNamespace(string $namespace, array|string $hints): void
+    {
+        $hints = (array) $hints;
+
+        if (isset($this->hints[$namespace])) {
+            $hints = array_merge($this->hints[$namespace], $hints);
+        }
+
+        $this->hints[$namespace] = $hints;
+    }
+
 }

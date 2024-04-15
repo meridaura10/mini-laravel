@@ -27,6 +27,14 @@ class Container implements ArrayAccess, ContainerInterface
 
     protected array $resolvingCallbacks = [];
 
+    protected array $globalResolvingCallbacks = [];
+
+    protected array $globalAfterResolvingCallbacks = [];
+
+
+    protected array $afterResolvingCallbacks = [];
+
+
     public function bind(string $abstraction, callable|string $concrete, $shared = false): void
     {
         $this->bindings[$abstraction] = compact('concrete', 'shared');
@@ -45,42 +53,64 @@ class Container implements ArrayAccess, ContainerInterface
 
     public function resolve(string $abstraction, bool $raiseEvents = true): mixed
     {
-        try {
+        $abstraction = $this->getAlias($abstraction);
 
-            $abstraction = $this->getAlias($abstraction);
+        $concrete = $this->getConcrete($abstraction);
 
-            $concrete = $this->getConcrete($abstraction);
-
-            if (isset($this->instances[$abstraction])) {
-                return $this->instances[$abstraction];
-            }
-
-            if (! $concrete) {
-                throw new \Exception("$abstraction not concrete");
-            }
-
-            $object = $this->build($concrete);
-
-            if ($this->isShared($abstraction)) {
-                $this->instance($abstraction, $object);
-            }
-
-            if ($raiseEvents) {
-                $this->fireResolvingCallbacks($abstraction, $object);
-            }
-
-            return $object;
-        } catch (\Exception $exception) {
-            dd($exception->getMessage(), 'error resolve '.$abstraction);
+        if (isset($this->instances[$abstraction])) {
+            return $this->instances[$abstraction];
         }
+
+        if (!$concrete) {
+            throw new \Exception("$abstraction not concrete");
+        }
+
+        $object = $this->build($concrete);
+
+        if ($this->isShared($abstraction)) {
+            $this->instance($abstraction, $object);
+        }
+
+        if ($raiseEvents) {
+            $this->fireResolvingCallbacks($abstraction, $object);
+        }
+
+        return $object;
     }
 
     protected function fireResolvingCallbacks(string $abstraction, mixed $object): void
     {
+        $this->fireCallbackArray($object, $this->globalResolvingCallbacks);
+
         $this->fireCallbackArray(
             $object, $this->getCallbacksForType($abstraction, $object, $this->resolvingCallbacks)
         );
+
+        $this->fireAfterResolvingCallbacks($abstraction, $object);
     }
+
+    protected function fireAfterResolvingCallbacks(string $abstract, mixed $object): void
+    {
+        $this->fireCallbackArray($object, $this->globalAfterResolvingCallbacks);
+
+        $this->fireCallbackArray(
+            $object, $this->getCallbacksForType($abstract, $object, $this->afterResolvingCallbacks)
+        );
+    }
+
+    public function afterResolving(Closure|string $abstract, Closure $callback = null): void
+    {
+        if (is_string($abstract)) {
+            $abstract = $this->getAlias($abstract);
+        }
+
+        if ($abstract instanceof Closure && is_null($callback)) {
+            $this->globalAfterResolvingCallbacks[] = $abstract;
+        } else {
+            $this->afterResolvingCallbacks[$abstract][] = $callback;
+        }
+    }
+
 
     protected function getCallbacksForType(string $abstraction, mixed $object, array $callbacksPerType): array
     {
@@ -135,8 +165,7 @@ class Container implements ArrayAccess, ContainerInterface
 
             return $this->reflectionBuild($reflector, $concrete);
         } catch (\Exception $exception) {
-            dd($exception->getMessage());
-            dd('error to method build in container concrete = '.$concrete, $exception->getMessage());
+            throw new \Exception('error to method build in container concrete = ' . $concrete);
         }
     }
 
@@ -196,13 +225,13 @@ class Container implements ArrayAccess, ContainerInterface
     {
         $type = $parameter->getType();
 
-        if (! $type instanceof ReflectionNamedType || $type->isBuiltin()) {
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
             return null;
         }
 
         $name = $type->getName();
 
-        if (! is_null($class = $parameter->getDeclaringClass())) {
+        if (!is_null($class = $parameter->getDeclaringClass())) {
             if ($name === 'self') {
                 return $class->getName();
             }
@@ -249,11 +278,11 @@ class Container implements ArrayAccess, ContainerInterface
     {
         $pushedToBuildStack = false;
 
-        if (($className = $this->getClassForCallable($callback)) && ! in_array(
-            $className,
-            $this->buildStack,
-            true
-        )) {
+        if (($className = $this->getClassForCallable($callback)) && !in_array(
+                $className,
+                $this->buildStack,
+                true
+            )) {
             $this->buildStack[] = $className;
 
             $pushedToBuildStack = true;
@@ -271,11 +300,11 @@ class Container implements ArrayAccess, ContainerInterface
     protected function getClassForCallable(callable|string $callback): ?string
     {
         if (is_callable($callback) &&
-            ! ($reflector = new ReflectionFunction($callback(...)))->isAnonymous()) {
+            !($reflector = new ReflectionFunction($callback(...)))->isAnonymous()) {
             return $reflector->getClosureScopeClass()->name ?? false;
         }
 
-        if (! is_array($callback)) {
+        if (!is_array($callback)) {
             return false;
         }
 
@@ -292,7 +321,7 @@ class Container implements ArrayAccess, ContainerInterface
         return static::$instance;
     }
 
-    public function bound($abstract): bool
+    public function bound(string $abstract): bool
     {
         return isset($this->bindings[$abstract]) ||
             isset($this->instances[$abstract]) ||
@@ -311,7 +340,7 @@ class Container implements ArrayAccess, ContainerInterface
 
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        $this->bind($offset, $value instanceof Closure ? $value : fn () => $value);
+        $this->bind($offset, $value instanceof Closure ? $value : fn() => $value);
     }
 
     public function offsetUnset(mixed $offset): void

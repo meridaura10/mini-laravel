@@ -195,7 +195,7 @@ class QueryBuilder implements QueryBuilderInterface
         $direction = $direction ? 'asc' : 'desc';
 
         if ($this->isQueryable($column)) {
-            dd('query builder 147 isQueryable true');
+            throw new \Exception('query builder 147 isQueryable true');
         }
 
         $this->{$this->unions ? 'unionOrders' : 'orders'}[] = [
@@ -213,7 +213,7 @@ class QueryBuilder implements QueryBuilderInterface
             $value instanceof Closure;
     }
 
-    public function where(string|ExpressionInterface $column,mixed $operator = null,mixed $value = null,string $boolean = 'and'): static
+    public function where(string|ExpressionInterface|Closure|array $column,mixed $operator = null,mixed $value = null,string $boolean = 'and'): static
     {
         if ($column instanceof ExpressionInterface) {
             $type = 'Expression';
@@ -223,13 +223,26 @@ class QueryBuilder implements QueryBuilderInterface
             return $this;
         }
 
+        if (is_array($column)) {
+            return $this->addArrayOfWheres($column, $boolean);
+        }
+
+
+
         [$value, $operator] = $this->prepareValueAndOperator(
             $value, $operator, func_num_args() === 2
         );
 
+
+        if ($column instanceof Closure && is_null($operator)) {
+            return $this->whereNested($column, $boolean);
+        }
+
+
         if ($this->invalidOperator($operator)) {
             [$value, $operator] = [$operator, '='];
         }
+
 
         $type = 'Basic';
 
@@ -244,6 +257,42 @@ class QueryBuilder implements QueryBuilderInterface
 
         return $this;
     }
+
+    public function whereNested(Closure $callback,string $boolean = 'and'): static
+    {
+        $callback($query = $this->forNestedWhere());
+
+        return $this->addNestedWhereQuery($query, $boolean);
+    }
+
+    public function addNestedWhereQuery(QueryBuilderInterface $query,string $boolean = 'and'): static
+    {
+        if (count($query->wheres)) {
+            $type = 'Nested';
+
+            $this->wheres[] = compact('type', 'query', 'boolean');
+
+            $this->addBinding($query->getRawBindings()['where'], 'where');
+        }
+
+        return $this;
+    }
+
+    public function getRawBindings(): array
+    {
+        return $this->bindings;
+    }
+
+    public function forNestedWhere(): static
+    {
+        return $this->newQuery()->from($this->from);
+    }
+
+    public function newQuery(): static
+    {
+        return new static($this->connection, $this->grammar, $this->processor);
+    }
+
 
     protected function flattenValue(mixed $value): mixed
     {
@@ -287,13 +336,13 @@ class QueryBuilder implements QueryBuilderInterface
         return $this;
     }
 
-    protected function invalidOperator(string $operator): string
+    protected function invalidOperator(?string $operator): string
     {
         return (! in_array(strtolower($operator), $this->operators, true) &&
                 ! in_array(strtolower($operator), $this->grammar->getOperators(), true));
     }
 
-    public function prepareValueAndOperator(mixed $value,string $operator,bool $useDefault = false): array
+    public function prepareValueAndOperator(mixed $value,?string $operator,bool $useDefault = false): array
     {
         if ($useDefault) {
             return [$operator, '='];
@@ -304,7 +353,7 @@ class QueryBuilder implements QueryBuilderInterface
         return [$value, $operator];
     }
 
-    protected function invalidOperatorAndValue(string $operator,mixed $value): bool
+    protected function invalidOperatorAndValue(mixed $operator,mixed $value): bool
     {
         return is_null($value) && in_array($operator, $this->operators) &&
             ! in_array($operator, ['=', '<>', '!=']);
@@ -430,6 +479,11 @@ class QueryBuilder implements QueryBuilderInterface
     public function max(string|ExpressionInterface $column): mixed
     {
         return $this->aggregate(__FUNCTION__, [$column]);
+    }
+
+    public function count($columns = '*'): mixed
+    {
+        return (int) $this->aggregate(__FUNCTION__, Arr::wrap($columns));
     }
 
     public function clone(): static

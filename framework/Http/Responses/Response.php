@@ -51,9 +51,10 @@ class Response extends BaseResponse
             is_array($content);
     }
 
-    protected function morphToJson(Arrayable|Jsonable|ArrayObject|JsonSerializable|array $content): ?string
+    protected function morphToJson(mixed $content): ?string
     {
         if ($content instanceof Jsonable) {
+
             return $content->toJson();
         } elseif ($content instanceof Arrayable) {
             return json_encode($content->toArray());

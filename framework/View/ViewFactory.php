@@ -14,6 +14,7 @@ use Framework\Kernel\View\Exceptions\InvalidArgumentException;
 class ViewFactory implements ViewFactoryInterface
 {
     protected array $extensions = [
+        'blade.php' => 'blade',
         'php' => 'php',
     ];
 
@@ -23,12 +24,14 @@ class ViewFactory implements ViewFactoryInterface
 
     protected array $shared = [];
 
+
     protected ?ApplicationInterface $app = null;
 
     public function __construct(
         protected EngineResolverInterface $engines,
         protected FileViewFinderInterface $finder,
-    ) {
+    )
+    {
         $this->share('__env', $this);
     }
 
@@ -55,7 +58,7 @@ class ViewFactory implements ViewFactoryInterface
 
     public function getEngineFromPath(string $path): EngineInterface
     {
-        if (! $extension = $this->getExtension($path)) {
+        if (!$extension = $this->getExtension($path)) {
             throw new InvalidArgumentException("Unrecognized extension in file: {$path}.");
         }
 
@@ -69,7 +72,7 @@ class ViewFactory implements ViewFactoryInterface
         $extensions = array_keys($this->extensions);
 
         foreach ($extensions as $extension) {
-            if (str_ends_with($path, '.'.$extension)) {
+            if (str_ends_with($path, '.' . $extension)) {
                 return $extension;
             }
         }
@@ -134,5 +137,10 @@ class ViewFactory implements ViewFactoryInterface
     public function getShared(): array
     {
         return $this->shared;
+    }
+
+    public function getFinder(): FileViewFinderInterface
+    {
+        return $this->finder;
     }
 }

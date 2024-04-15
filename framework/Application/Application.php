@@ -29,6 +29,7 @@ class Application extends Container implements ApplicationInterface
 
     protected string $storagePath = '';
 
+    protected string $langPath = '';
     protected array $serviceProviders = [];
 
     protected array $deferredServices = [];
@@ -231,7 +232,31 @@ class Application extends Container implements ApplicationInterface
         $this->instance('path.database', $this->databasePath());
         $this->instance('path.public', $this->publicPath());
         $this->instance('path.resources', $this->resourcePath());
-        //        $this->instance('path.storage', $this->storagePath());
+        $this->instance('path.storage', $this->storagePath());
+
+        $this->useLangPath(value(function () {
+            return is_dir($directory = $this->resourcePath('lang'))
+                ? $directory
+                : $this->basePath('lang');
+        }));
+    }
+
+    public function useLangPath(string $path): static
+    {
+        $this->langPath = $path;
+
+        $this->instance('path.lang', $path);
+
+        return $this;
+    }
+
+    public function storagePath(string $path = ''): string
+    {
+        if (isset($_ENV['LARAVEL_STORAGE_PATH'])) {
+            return $this->joinPaths($this->storagePath ?: $_ENV['LARAVEL_STORAGE_PATH'], $path);
+        }
+
+        return $this->joinPaths($this->storagePath ?: $this->basePath('storage'), $path);
     }
 
     public function basePath(string $path = ''): string
@@ -333,5 +358,15 @@ class Application extends Container implements ApplicationInterface
         }
 
         throw new \Exception('Unable to detect application namespace.');
+    }
+
+    public function getLocale(): string
+    {
+        return $this['config']['app.locale'];
+    }
+
+    public function getFallbackLocale(): string
+    {
+        return $this['config']->get('app.fallback_locale');
     }
 }

@@ -2,6 +2,8 @@
 
 namespace Framework\Kernel\Http\Requests\Contracts;
 
+use Framework\Kernel\Route\Route;
+
 interface RequestInterface
 {
     public function uri(): string;
@@ -15,4 +17,6 @@ interface RequestInterface
     public function getRequestFormat(?string $default = 'html'): ?string;
 
     public function getMimeType(string $format): ?string;
+
+    public function route(?string $param = null, mixed $default = null): Route|null|string;
 }

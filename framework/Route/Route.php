@@ -5,6 +5,7 @@ namespace Framework\Kernel\Route;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
 use Framework\Kernel\Route\Contracts\RouterInterface;
+use Framework\Kernel\Support\Str;
 
 class Route
 {
@@ -16,7 +17,11 @@ class Route
 
     private array $parameters = [];
 
+    protected array $bindingFields = [];
+
     private ?RouteCompiled $compiled = null;
+
+    protected bool $withTrashedBindings = false;
 
     public function __construct(
         private string $method,
@@ -84,6 +89,11 @@ class Route
         return $this->parameters;
     }
 
+    public function setParameter(string $name,mixed $value): void
+    {
+        $this->parameters[$name] = $value;
+    }
+
     protected function getController(): mixed
     {
         if (! $this->controller) {
@@ -98,6 +108,17 @@ class Route
     public function controllerDispatcher(): ControllerDispatcher
     {
         return new ControllerDispatcher($this->container);
+    }
+
+    public function getMissing()
+    {
+        $missing = $this->action['missing'] ?? null;
+
+        return is_string($missing) &&
+        Str::startsWith($missing, [
+            'O:47:"Laravel\\SerializableClosure\\SerializableClosure',
+            'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure',
+        ]) ? unserialize($missing) : $missing;
     }
 
     public function matches(RequestInterface $request): bool
@@ -120,12 +141,40 @@ class Route
         }
     }
 
+    public function bindingFieldFor(int|string $parameter): ?string
+    {
+        $fields = is_int($parameter) ? array_values($this->bindingFields) : $this->bindingFields;
+
+        return $fields[$parameter] ?? null;
+    }
+
+    public function parentOfParameter(string $parameter): ?string
+    {
+        $key = array_search($parameter, array_keys($this->parameters));
+
+        if ($key === 0 || $key === false) {
+            return null;
+        }
+
+        return array_values($this->parameters)[$key - 1];
+    }
+
+    public function allowsTrashedBindings(): bool
+    {
+        return $this->withTrashedBindings;
+    }
+
     public function bind(RequestInterface $request): static
     {
         $this->parameters = (new RouteParameterBinder($this))
             ->parameters($request);
 
         return $this;
+    }
+
+    public function signatureParameters(array $conditions = []): array
+    {
+        return RouteSignatureParameters::fromAction($this->action, $conditions);
     }
 
     public function getCompiled(): ?RouteCompiled

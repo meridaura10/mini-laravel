@@ -1,0 +1,70 @@
+* {
+    padding: 0px;
+    margin: 0px;
+}
+
+.app{
+    background-color: #060628;
+    min-height: 100vh;
+    color: #e7d7d7;
+    font-family: Arial;
+}
+
+.container{
+    width: 100%;
+    max-width: 1224px;
+    margin: 0px auto;
+}
+
+.header_wrap{
+    padding-top: 50px;
+}
+
+.header{
+    background-color: #18182c;
+    padding: 3em 2em;
+    border-radius: 15px;
+    border: #2323b6 1px solid;
+}
+
+.header_title{
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.content{
+    margin-top: 40px;
+    display: flex;
+}
+
+.aside_wrap {
+    display: flex;
+    justify-content: left;
+}
+
+aside {
+    width: 320px; /* Ширина блоку трасування */
+}
+
+.trace {
+    list-style-type: none; /* Видаляємо маркери списку */
+    padding: 0;
+    margin: 0;
+}
+
+.trace li {
+    padding: 10px; /* Відступи від кожного елементу списку */
+    border-bottom: 1px solid #ccc; /* Розділюємо елементи лініями */
+}
+
+.trace li:last-child {
+    border-bottom: none; /* Відключаємо роздільну лінію для останнього елементу */
+}
+
+.trace li div {
+    font-size: 14px; /* Розмір шрифту */
+}
+
+.trace li div span {
+    font-weight: bold; /* Жирний шрифт для файлу та функції */
+}

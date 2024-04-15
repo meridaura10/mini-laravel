@@ -73,7 +73,7 @@ class BaseResponse implements ResponseInterface
         511 => 'Network Authentication Required',                             // RFC6585
     ];
 
-    protected ?ResponseHeaderBag $headers = null;
+    public ?ResponseHeaderBag $headers = null;
 
     protected ?string $statusText = null;
 
@@ -114,7 +114,7 @@ class BaseResponse implements ResponseInterface
 
         $statusCode = \func_num_args() > 0 ? func_get_arg(0) : null;
         $informationalResponse = $statusCode >= 100 && $statusCode < 200;
-        if ($informationalResponse && ! \function_exists('headers_send')) {
+        if ($informationalResponse && !\function_exists('headers_send')) {
             // skip informational responses if not supported by the SAPI
             return $this;
         }
@@ -143,7 +143,7 @@ class BaseResponse implements ResponseInterface
             }
 
             foreach ($newValues as $value) {
-                header($name.': '.$value, $replace, $this->statusCode);
+                header($name . ': ' . $value, $replace, $this->statusCode);
             }
 
             if ($informationalResponse) {
@@ -153,7 +153,7 @@ class BaseResponse implements ResponseInterface
 
         // cookies
         foreach ($this->headers->getCookies() as $cookie) {
-            header('Set-Cookie: '.$cookie, false, $this->statusCode);
+            header('Set-Cookie: ' . $cookie, false, $this->statusCode);
         }
 
         if ($informationalResponse) {
@@ -197,7 +197,7 @@ class BaseResponse implements ResponseInterface
             ini_set('default_mimetype', '');
         } else {
 
-            if (! $headers->has('Content-Type')) {
+            if (!$headers->has('Content-Type')) {
 
                 $format = $request->getRequestFormat(null);
 
@@ -208,11 +208,11 @@ class BaseResponse implements ResponseInterface
 
             // Fix Content-Type
             $charset = $this->charset ?: 'UTF-8';
-            if (! $headers->has('Content-Type')) {
-                $headers->set('Content-Type', 'text/html; charset='.$charset);
+            if (!$headers->has('Content-Type')) {
+                $headers->set('Content-Type', 'text/html; charset=' . $charset);
             } elseif (stripos($headers->get('Content-Type') ?? '', 'text/') === 0 && stripos($headers->get('Content-Type') ?? '', 'charset') === false) {
                 // add the charset
-                $headers->set('Content-Type', $headers->get('Content-Type').'; charset='.$charset);
+                $headers->set('Content-Type', $headers->get('Content-Type') . '; charset=' . $charset);
             }
 
             // Fix Content-Length
@@ -250,7 +250,7 @@ class BaseResponse implements ResponseInterface
     protected function ensureIEOverSSLCompatibility(RequestInterface $request): void
     {
         if (stripos($this->headers->get('Content-Disposition') ?? '', 'attachment') !== false && preg_match('/MSIE (.*?);/i', $request->server->get('HTTP_USER_AGENT') ?? '', $match) == 1 && $request->isSecure() === true) {
-            if ((int) preg_replace('/(MSIE )(.*?);/', '$2', $match[0]) < 9) {
+            if ((int)preg_replace('/(MSIE )(.*?);/', '$2', $match[0]) < 9) {
                 $this->headers->remove('Cache-Control');
             }
         }
@@ -277,5 +277,15 @@ class BaseResponse implements ResponseInterface
         $this->content = $content ?? '';
 
         return $this;
+    }
+
+    public function getContent(): false|string
+    {
+        return $this->content;
+    }
+
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
     }
 }

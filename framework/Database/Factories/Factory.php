@@ -5,6 +5,8 @@ namespace Framework\Kernel\Database\Factories;
 use App\Models\Brand;
 use App\Models\User;
 use Closure;
+use Faker\Generator;
+use Framework\Kernel\Container\Container;
 use Framework\Kernel\Database\Eloquent\EloquentCollection;
 use Framework\Kernel\Database\Eloquent\Model;
 use Framework\Kernel\Support\Collection;
@@ -18,6 +20,8 @@ abstract class Factory
 
     protected static ?Closure $modelNameResolver = null;
 
+    protected Generator $faker;
+
     public function __construct(
         protected int         $count = 0,
         protected ?Collection $states = new Collection(),
@@ -29,7 +33,12 @@ abstract class Factory
         protected ?Collection $recycle = new Collection()
     )
     {
-//        $this->faker = $this->withFaker();
+       $this->faker = $this->withFaker();
+    }
+
+    protected function withFaker()
+    {
+        return Container::getInstance()->make(Generator::class);
     }
 
     public function create(array $attributes = [], ?Model $parent = null): EloquentCollection
@@ -72,9 +81,8 @@ abstract class Factory
                 $has->recycle($this->recycle)->createFor($model);
             });
         });
-
-
     }
+
 
     public function recycle(Collection|Model $model): static
     {

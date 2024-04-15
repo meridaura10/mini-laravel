@@ -2,19 +2,24 @@
 
 namespace Framework\Kernel\Database\Eloquent;
 
+use Framework\Kernel\Contracts\Support\Arrayable;
+use Framework\Kernel\Contracts\Support\Jsonable;
 use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ConnectionResolverInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
+use Framework\Kernel\Database\Eloquent\Relations\Relation;
+use Framework\Kernel\Database\Exceptions\JsonEncodingException;
 use Framework\Kernel\Database\Exceptions\MassAssignmentException;
 use Framework\Kernel\Database\Query\Support\Traits\ForwardsCallsTrait;
 use Framework\Kernel\Database\Traits\GuardsAttributesTrait;
 use Framework\Kernel\Database\Traits\HasAttributesTrait;
 use Framework\Kernel\Database\Traits\HasRelationshipsTrait;
 use Framework\Kernel\Database\Traits\HasTimestampsTrait;
+use Framework\Kernel\Route\Contracts\UrlRoutableInterface;
 use Framework\Kernel\Support\Str;
 
-abstract class Model
+abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRoutableInterface
 {
     use ForwardsCallsTrait,
         GuardsAttributesTrait,
@@ -298,6 +303,21 @@ abstract class Model
         return [];
     }
 
+    public function resolveRouteBinding(mixed $value,?string $field = null): ?Model
+    {
+        return $this->resolveRouteBindingQuery($this, $value, $field)->first();
+    }
+
+    public function resolveRouteBindingQuery(Model|Relation $query,mixed $value, ?string $field = null): QueryBuilderInterface
+    {
+        return $query->where($field ?? $this->getRouteKeyName(), $value);
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return $this->getKeyName();
+    }
+
     public function getIncrementing(): bool
     {
         return $this->incrementing;
@@ -362,6 +382,27 @@ abstract class Model
     protected function through(string $method): mixed
     {
         return null;
+    }
+
+    public function toArray(): array
+    {
+        return array_merge($this->attributesToArray(), $this->relationsToArray());
+    }
+
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    public function toJson(int $options = 0): string
+    {
+        $json = json_encode($this->jsonSerialize(), $options);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw JsonEncodingException::forModel($this, json_last_error_msg());
+        }
+
+        return $json;
     }
 
     public function __set($key, $value)

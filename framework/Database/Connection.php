@@ -237,7 +237,7 @@ class Connection implements ConnectionInterface
         try {
             return $callback($query, $bindings);
         } catch (QueryException $e) {
-            dd($e->getMessage(),'1');
+            throw $e;
             //            $result = $this->handleQueryException(
             //                $e, $query, $bindings, $callback
             //            );
@@ -358,6 +358,6 @@ class Connection implements ConnectionInterface
 
     public function transaction(callable $callback, int $attempts = 1): mixed
     {
-        dd($callback,'method transaction or Migrator 134 line');
+        throw new \Exception($callback,'method transaction or Migrator 134 line');
     }
 }

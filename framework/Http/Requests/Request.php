@@ -2,78 +2,29 @@
 
 namespace Framework\Kernel\Http\Requests;
 
+use Closure;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
+use Framework\Kernel\Contracts\Support\Arrayable;
 use Framework\Kernel\Http\HeaderBag;
 use Framework\Kernel\Http\Requests\Bags\FileBag;
 use Framework\Kernel\Http\Requests\Bags\InputBag;
 use Framework\Kernel\Http\Requests\Bags\ParameterBag;
 use Framework\Kernel\Http\Requests\Bags\ServerBag;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
+use Framework\Kernel\Http\Requests\Traits\InteractsWithContentTypesTrait;
+use Framework\Kernel\Http\Requests\Traits\InteractsWithInputTrait;
+use Framework\Kernel\Route\Route;
+use Framework\Kernel\Support\Arr;
 
-class Request implements RequestInterface
+class Request extends SRequest implements RequestInterface, Arrayable
 {
-    protected ?ApplicationInterface $app = null;
+    use InteractsWithContentTypesTrait,
+        InteractsWithInputTrait;
 
-    public ?InputBag $request = null;
+    protected ?InputBag $json = null;
 
-    public ?InputBag $query = null;
+    protected ?Closure $routeResolver = null;
 
-    public ?ParameterBag $attributes = null;
-
-    public ?InputBag $cookies = null;
-
-    //    protected array $files = [];
-
-    public ?ServerBag $server = null;
-
-    public ?HeaderBag $headers = null;
-
-    protected ?string $format = null;
-
-    public function __construct(
-        array $query = [],
-        array $request = [],
-        array $attributes = [],
-        array $cookies = [],
-        array $files = [],
-        array $server = [],
-        array $content = []
-
-    ) {
-        $this->initialize($query, $request, $attributes, $cookies, $files, $server, $content);
-    }
-
-    public static function createFromGlobals(): static
-    {
-
-        return new static(...array_values(static::getGlobals()));
-    }
-
-    private static function getGlobals(): array
-    {
-        return [
-            'GET' => $_GET,
-            'POST' => $_POST,
-            'ATTRIBUTES' => [],
-            'COOKIE' => $_COOKIE,
-            'FILES' => $_FILES,
-            'SERVER' => $_SERVER,
-        ];
-    }
-
-    public function initialize(array $query = [], array $request = [], array $attributes = [], array $cookies = [], array $files = [], array $server = [], $content = null): void
-    {
-        $this->request = new InputBag($request);
-        $this->query = new InputBag($query);
-        $this->attributes = new ParameterBag($attributes);
-        $this->cookies = new InputBag($cookies);
-        //        $this->files = new FileBag($files);
-        $this->server = new ServerBag($server);
-
-        $this->headers = new HeaderBag($this->server->getHeaders());
-
-        $this->format = null;
-    }
 
     public function uri(): string
     {
@@ -90,19 +41,6 @@ class Request implements RequestInterface
         return $this->server->get('REQUEST_METHOD');
     }
 
-    public function input(string $key, $default = null): mixed
-    {
-        return $this->post[$key] ?? $this->get[$key] ?? $default;
-    }
-
-    public static function createFrom(self $from, $to = null): RequestInterface
-    {
-        $request = $to ?: new static;
-
-        $request->initialize();
-
-        return $request;
-    }
 
     public function setContainer(ApplicationInterface $app): static
     {
@@ -126,5 +64,117 @@ class Request implements RequestInterface
         //        }
         //
         //        return isset(static::$formats[$format]) ? static::$formats[$format][0] : null;
+    }
+
+
+    protected function getInputSource(): InputBag
+    {
+        if($this->isJson()){
+            return $this->json();
+        }
+
+
+        return in_array($this->getRealMethod(), ['GET', 'HEAD']) ? $this->query : $this->request;
+    }
+
+    public function getRealMethod(): string
+    {
+        return strtoupper($this->server->get('REQUEST_METHOD', 'GET'));
+    }
+
+    public function json(?string $key = null,mixed $default = null): mixed
+    {
+        if (! isset($this->json)) {
+            $this->json = new InputBag((array) json_decode($this->getContent(), true));
+        }
+
+        if (is_null($key)) {
+            return $this->json;
+        }
+
+        return data_get($this->json->all(), $key, $default);
+    }
+
+    public static function createFrom(self $from, $to = null): RequestInterface
+    {
+
+        $request = $to ?: new static;
+
+//        $files = array_filter($from->files->all());
+
+        $request->initialize(
+            $from->query->all(),
+            $from->request->all(),
+            $from->attributes->all(),
+            $from->cookies->all(),
+            $files ?? [],
+            $from->server->all(),
+            $from->getContent()
+        );
+
+//        $request->headers->replace($from->headers->all());
+
+//        $request->setRequestLocale($from->getLocale());
+//
+//        $request->setDefaultRequestLocale($from->getDefaultLocale());
+
+        $request->setJson($from->json());
+
+//        if ($from->hasSession() && $session = $from->session()) {
+//            $request->setLaravelSession($session);
+//        }
+//
+//        $request->setUserResolver($from->getUserResolver());
+//
+//        $request->setRouteResolver($from->getRouteResolver());
+
+        return $request;
+    }
+
+    public function getRouteResolver(): Closure
+    {
+        return $this->routeResolver ?: function () {
+            //
+        };
+    }
+
+    public function route(?string $param = null, mixed $default = null): Route|null|string
+    {
+        $route = call_user_func($this->getRouteResolver());
+
+        if(is_null($route) || is_null($param)){
+            return $route;
+        }
+
+        return $route->parameter($param, $default);
+    }
+
+    public function ajax(): bool
+    {
+        return $this->isXmlHttpRequest();
+    }
+
+    public function pjax(): bool
+    {
+        return $this->headers->get('X-PJAX') == true;
+    }
+
+    public function setJson(?InputBag $json): static
+    {
+        $this->json = $json;
+
+        return $this;
+    }
+
+    public function toArray(): array
+    {
+        return $this->all();
+    }
+
+    public function setRouteResolver(Closure $callback): static
+    {
+        $this->routeResolver = $callback;
+
+        return $this;
     }
 }

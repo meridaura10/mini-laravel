@@ -13,6 +13,8 @@ class Str
 
     protected static array $camelCache = [];
 
+    protected static \Closure|null $randomStringFactory = null;
+
     public static function startsWith(string $haystack, iterable|string $needles): bool
     {
         if (! is_iterable($needles)) {
@@ -26,6 +28,92 @@ class Str
         }
 
         return false;
+    }
+
+    public static function parseCallback(string $callback,?string $default = null): array
+    {
+        if (static::contains($callback, "@anonymous\0")) {
+            if (static::substrCount($callback, '@') > 1) {
+                return [
+                    static::beforeLast($callback, '@'),
+                    static::afterLast($callback, '@'),
+                ];
+            }
+
+            return [$callback, $default];
+        }
+
+        return static::contains($callback, '@') ? explode('@', $callback, 2) : [$callback, $default];
+    }
+
+    public static function afterLast(string $subject,string $search): string
+    {
+        if ($search === '') {
+            return $subject;
+        }
+
+        $position = strrpos($subject, (string) $search);
+
+        if ($position === false) {
+            return $subject;
+        }
+
+        return substr($subject, $position + strlen($search));
+    }
+
+    public static function substrCount(string $haystack,string $needle,int $offset = 0,?int $length = null): int
+    {
+        if (! is_null($length)) {
+            return substr_count($haystack, $needle, $offset, $length);
+        }
+
+        return substr_count($haystack, $needle, $offset);
+    }
+
+    public static function is(string|array $pattern,string $value): bool
+    {
+        $value = (string) $value;
+
+        if (! is_iterable($pattern)) {
+            $pattern = [$pattern];
+        }
+
+        foreach ($pattern as $pattern) {
+            $pattern = (string) $pattern;
+
+            if ($pattern === $value) {
+                return true;
+            }
+
+            $pattern = preg_quote($pattern, '#');
+
+            $pattern = str_replace('\*', '.*', $pattern);
+
+            if (preg_match('#^'.$pattern.'\z#u', $value) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function random(int $length = 16): string
+    {
+        return (static::$randomStringFactory ?? function ($length) {
+            $string = '';
+
+            while (($len = strlen($string)) < $length) {
+                $size = $length - $len;
+
+                $bytesSize = (int) ceil($size / 3) * 3;
+
+                $bytes = random_bytes($bytesSize);
+
+                $string .= substr(str_replace(['/', '+', '='], '', base64_encode($bytes)), 0, $size);
+            }
+
+            return $string;
+        })($length);
     }
 
     public static function camel(string $value): string
@@ -192,7 +280,7 @@ class Str
         return implode('', $parts).self::plural($lastWord, $count);
     }
 
-    public static function contains(string $haystack, iterable $needles, bool $ignoreCase = false): bool
+    public static function contains(string $haystack, string|iterable $needles, bool $ignoreCase = false): bool
     {
         if ($ignoreCase) {
             $haystack = mb_strtolower($haystack);

@@ -5,8 +5,11 @@ namespace Framework\Kernel\Foundation\Providers;
 use Framework\Kernel\Foundation\Providers\Contracts\DefaultProvidersInterface;
 use Framework\Kernel\Foundation\Providers\Services\ConsoleSupportServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\DatabaseServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\ExceptionViewServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\FilesystemProvider;
 use Framework\Kernel\Foundation\Providers\Services\SessionServiceServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\TranslationServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\ValidationServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\ViewServiceProvider;
 
 class DefaultProviders implements DefaultProvidersInterface
@@ -23,6 +26,9 @@ class DefaultProviders implements DefaultProvidersInterface
                 FilesystemProvider::class,
                 DatabaseServiceProvider::class,
                 ConsoleSupportServiceProvider::class,
+                ValidationServiceProvider::class,
+                TranslationServiceProvider::class,
+                ExceptionViewServiceProvider::class,
             ];
     }
 

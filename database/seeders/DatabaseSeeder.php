@@ -14,8 +14,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        User::factory()
-            ->has(Basket::factory(3)
+        User::factory()->has(Basket::factory(3)
                 ->has(BasketProduct::factory(3)
                     ->for(Product::factory(2)
                         ->for(Brand::factory()))))

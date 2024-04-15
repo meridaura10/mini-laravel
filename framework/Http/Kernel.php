@@ -2,22 +2,24 @@
 
 namespace Framework\Kernel\Http;
 
+use Framework\Kernel\Route\Middleware\SubstituteBindings;
+
 class Kernel extends KernelHttp
 {
     protected array $middleware = [
-        \App\Http\Middleware\Middleware::class,
-        \App\Http\Middleware\MiddlewareTo::class,
+
     ];
 
     protected array $middlewareGroups = [
+        'web' => [
+            \Framework\Kernel\Route\Middleware\SubstituteBindings::class,
+        ],
         'api' => [
-            \App\Http\Middleware\MiddlewareG1::class,
-            \App\Http\Middleware\MiddlewareG2::class,
-            \App\Http\Middleware\MiddlewareG3::class,
+            \Framework\Kernel\Route\Middleware\SubstituteBindings::class,
         ],
     ];
 
     protected array $middlewareAliases = [
-        'p1' => \App\Http\Middleware\MiddlewareP1::class,
+
     ];
 }

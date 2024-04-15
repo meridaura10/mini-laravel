@@ -1,5 +1,15 @@
 {
     "name": "php/framework",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Framework\\Kernel\\Foundation\\Providers\\Services\\IgnitionServiceProvider"
+            ],
+            "aliases": {
+                "Flare": "Framework\\Kernel\\Facades\\Services\\Flare"
+            }
+        }
+    },
     "autoload": {
         "files": [
             "framework/Helpers/Helpers.php"
@@ -14,7 +24,9 @@
     "require": {
         "php": "^8.2",
         "nesbot/carbon": "^3.0",
-        "nunomaduro/termwind": "^2.0"
+        "nunomaduro/termwind": "^2.0",
+        "fakerphp/faker": "^1.23",
+        "brick/math": "^0.12.1"
     },
     "require-dev": {
         "laravel/pint": "^1.13",

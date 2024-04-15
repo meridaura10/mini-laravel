@@ -12,6 +12,7 @@ class Product extends Model
 
     protected array $fillable = ['price', 'brand_id', 'title'];
 
+
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);

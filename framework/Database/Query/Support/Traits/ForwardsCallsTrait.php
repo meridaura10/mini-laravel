@@ -10,9 +10,7 @@ trait ForwardsCallsTrait
     protected function forwardCallTo(object $builder, string $method, array $parameters): mixed
     {
         try {
-
             return $builder->{$method}(...$parameters);
-
         } catch (BadMethodCallException|Error $exception) {
             dd($exception->getMessage());
         }

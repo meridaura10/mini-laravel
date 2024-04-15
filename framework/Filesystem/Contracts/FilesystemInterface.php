@@ -16,6 +16,8 @@ interface FilesystemInterface
 
     public function put(string $path, string $contents, bool $lock = false): int|bool;
 
+    public function lastModified(string $path): false|int;
+
     public function get(string $path, bool $lock = false): string;
 
     public function ensureDirectoryExists(string $path,int $mode = 0755,bool $recursive = true): void;

@@ -2,10 +2,14 @@
 
 namespace Framework\Kernel\Route\Traits;
 
+use Framework\Kernel\Support\Arr;
+use Framework\Kernel\Support\Reflector;
+use ReflectionClass;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
 use stdClass;
+use function Symfony\Component\Translation\t;
 
 trait ResolvesRouteDependenciesTrait
 {
@@ -53,16 +57,21 @@ trait ResolvesRouteDependenciesTrait
 
     protected function transformDependency(ReflectionParameter $parameter, array $parameters, stdClass $skippableValue): mixed
     {
-        if (! $parameter->getType()) {
-            return $skippableValue;
-        }
+        $className = Reflector::getParameterClassName($parameter);
 
-        if ($parameter->getType() instanceof \ReflectionNamedType) {
-            $className = $parameter->getType()->getName();
+        if($className && !$this->alreadyInParameters($className, $parameters)){
+            $isEnum = (new ReflectionClass($className))->isEnum();
 
-            return $this->app->make($className);
+            return $parameter->isDefaultValueAvailable()
+                ? ($isEnum ? $parameter->getDefaultValue() : null)
+                : $this->app->make($className);
         }
 
         return $skippableValue;
+    }
+
+    protected function alreadyInParameters(string $class, array $parameters): bool
+    {
+        return ! is_null(Arr::first($parameters, fn ($value) => $value instanceof $class));
     }
 }

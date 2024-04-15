@@ -53,6 +53,13 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         );
     }
 
+    protected function whereNested(QueryBuilderInterface $query,array $where):string
+    {
+        $offset = $where['query'] instanceof JoinClause ? 3 : 6;
+
+        return '('.substr($this->compileWheres($where['query']), $offset).')';
+    }
+
     protected function compileDeleteWithoutJoins(QueryBuilderInterface $query,string $table,string $where): string
     {
         return "delete from {$table} {$where}";

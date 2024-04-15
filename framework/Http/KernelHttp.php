@@ -5,11 +5,14 @@ namespace Framework\Kernel\Http;
 use Closure;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Facades\Facade;
+use Framework\Kernel\Foundation\Exceptions\Contracts\ExceptionHandlerInterface;
 use Framework\Kernel\Http\Contracts\KernelInterface;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
+use Framework\Kernel\Http\Requests\Request;
 use Framework\Kernel\Http\Responses\Contracts\ResponseInterface;
 use Framework\Kernel\Pipeline\Pipeline;
 use Framework\Kernel\Route\Contracts\RouterInterface;
+use Throwable;
 
 class KernelHttp implements KernelInterface
 {
@@ -39,11 +42,23 @@ class KernelHttp implements KernelInterface
     {
         try {
             $response = $this->sendRequestThroughRouter($request);
-        }catch (\Exception $exception){
-            dd($exception);
+        }catch (Throwable $exception){
+            $this->reportException($exception);
+
+            $response = $this->renderException($request, $exception);
         }
 
         return $response;
+    }
+
+    public function reportException(Throwable $e): void
+    {
+        $this->app[ExceptionHandlerInterface::class]->report($e);
+    }
+
+    public function renderException(RequestInterface $request, Throwable $e): ResponseInterface
+    {
+        return $this->app[ExceptionHandlerInterface::class]->render($request, $e);
     }
 
     protected function sendRequestThroughRouter(RequestInterface $request): ResponseInterface
@@ -54,7 +69,8 @@ class KernelHttp implements KernelInterface
 
         $this->bootstrap();
 
-        return (new Pipeline($this->app))->send($request)
+        return (new Pipeline($this->app))
+            ->send($request)
             ->through($this->middleware)
             ->then($this->dispatchToRouter());
     }

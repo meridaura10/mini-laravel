@@ -6,6 +6,7 @@ use Closure;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Container\Contracts\ContainerInterface;
 use Framework\Kernel\Pipeline\Contracts\PipelineInterface;
+use RuntimeException;
 
 class Pipeline implements PipelineInterface
 {
@@ -62,13 +63,15 @@ class Pipeline implements PipelineInterface
     {
         return function (callable $stack, mixed $pipe) {
             return function (mixed $passable) use ($stack, $pipe) {
+                try {
+                    if (is_string($pipe)) {
+                        $pipe = $this->getContainer()->make($pipe);
+                    }
 
-                if (is_string($pipe)) {
-                    $pipe = new $pipe;
-                    //                    $pipe = $this->getContainer()->make($pipe);
+                    return $pipe->{$this->method}($passable, $stack);
+                }catch (\Throwable $e){
+                    return $this->handleException($passable, $e);
                 }
-
-                return $pipe->{$this->method}($passable, $stack);
             };
         };
     }
@@ -76,16 +79,25 @@ class Pipeline implements PipelineInterface
     protected function prepareDestination(Closure $destination): Closure
     {
         return function (mixed $passable) use ($destination) {
-            return $destination($passable);
+            try {
+                return $destination($passable);
+            }catch (\Throwable $e){
+                return $this->handleException($passable, $e);
+            }
         };
     }
 
     protected function getContainer(): ContainerInterface
     {
         if (! $this->container) {
-            throw new \Exception('A container instance has not been passed to the Pipeline.');
+            throw new RuntimeException('A container instance has not been passed to the Pipeline.');
         }
 
         return $this->container;
+    }
+
+    protected function handleException($passable, \Throwable $e): \Throwable
+    {
+        throw $e;
     }
 }

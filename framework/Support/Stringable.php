@@ -2,6 +2,7 @@
 
 namespace Framework\Kernel\Support;
 
+use Closure;
 use mysql_xdevapi\SqlStatementResult;
 
 class Stringable
@@ -11,6 +12,32 @@ class Stringable
     public function __construct($value = '')
     {
         $this->value = (string) $value;
+    }
+
+    public function trim(string $characters = null): static
+    {
+        return new static(trim(...array_merge([$this->value], func_get_args())));
+    }
+
+    public function when($value = null, callable $callback = null, callable $default = null): static|HigherOrderWhenProxy
+    {
+        $value = $value instanceof Closure ? $value($this) : $value;
+
+        if (func_num_args() === 0) {
+            return new HigherOrderWhenProxy($this);
+        }
+
+        if (func_num_args() === 1) {
+            return (new HigherOrderWhenProxy($this))->condition($value);
+        }
+
+        if ($value) {
+            return $callback($this, $value) ?? $this;
+        } elseif ($default) {
+            return $default($this, $value) ?? $this;
+        }
+
+        return $this;
     }
 
     public function endsWith(string|iterable $needles): bool

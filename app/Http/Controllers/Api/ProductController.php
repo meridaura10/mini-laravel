@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ProductShowEnum;
 use App\Http\Controllers\Controller;
-use App\Models\Brand;
+use App\Http\Requests\ProductStoreRequest;
 use App\Models\Product;
-use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
-use Framework\Kernel\Database\Eloquent\Builder;
 use Framework\Kernel\Database\Eloquent\Relations\Relation;
 use Framework\Kernel\Http\Requests\Request;
 use Framework\Kernel\Http\Responses\Contracts\ResponseInterface;
@@ -15,18 +14,27 @@ use Framework\Kernel\Http\Responses\Response;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(): ResponseInterface
     {
-        $products = Product::query()->with(['brand' => function (Relation $builder) {
-         $builder->select(['title','id']);
-        }])->limit(10)->get();
+        $products = Product::query()
+            ->with('brand')
+            ->where('id',1)
+            ->limit(10)
+            ->get();
 
-        dd($products);
-
+        return response()->json($products);
     }
 
-    public function show(Request $request, $product)
+    public function show(Product $product, ProductShowEnum $level, Request $request)
     {
+        dd($product, $level,$request);
+    }
 
+    public function store(ProductStoreRequest $request)
+    {
+//        $data = $request->validated();
+
+
+        return new Response($request);
     }
 }

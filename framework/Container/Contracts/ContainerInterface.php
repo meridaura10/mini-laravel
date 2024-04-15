@@ -2,6 +2,7 @@
 
 namespace Framework\Kernel\Container\Contracts;
 
+use Closure;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 
 interface ContainerInterface
@@ -23,4 +24,8 @@ interface ContainerInterface
     public function getAlias(string $abstract): string;
 
     public function alias(string $abstraction, string $alias): void;
+
+    public function afterResolving(Closure|string $abstract, Closure $callback = null): void;
+
+    public function bound(string $abstract): bool;
 }

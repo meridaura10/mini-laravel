@@ -23,4 +23,8 @@ interface ApplicationInterface extends ContainerInterface
     public function loadDeferredProviders(): void;
 
     public function getNamespace(): string;
+
+    public function getLocale(): string;
+
+    public function getFallbackLocale(): string;
 }

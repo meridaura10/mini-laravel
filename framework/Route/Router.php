@@ -12,12 +12,13 @@ use Framework\Kernel\Http\Responses\Contracts\ResponseInterface;
 use Framework\Kernel\Http\Responses\JsonResponse;
 use Framework\Kernel\Http\Responses\Response;
 use Framework\Kernel\Pipeline\Pipeline;
+use Framework\Kernel\Route\Contracts\RouteRegistrarInterface;
 use Framework\Kernel\Route\Contracts\RouterInterface;
 use JsonSerializable;
 use stdClass;
 use Stringable;
 
-class Router implements RouterInterface
+class Router implements RouterInterface, RouteRegistrarInterface
 {
     public static array $verbs = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
@@ -32,6 +33,8 @@ class Router implements RouterInterface
     protected array $middleware = [];
 
     protected RequestInterface $currentRequest;
+
+    protected ?Closure $implicitBindingCallback = null;
 
     protected ?Route $current = null;
 
@@ -55,6 +58,8 @@ class Router implements RouterInterface
 
     protected function runRoute(RequestInterface $request, Route $route): ResponseInterface
     {
+        $request->setRouteResolver(fn () => $route);
+
         return $this->prepareResponse($request, $this->runRouteWithinStack($route, $request));
     }
 
@@ -88,9 +93,8 @@ class Router implements RouterInterface
             $response instanceof JsonSerializable,
             $response instanceof stdClass,
             is_array($response) => new JsonResponse($response),
-            is_string($response) => new Response($response, 200, ['Content-Type' => 'text/html']),
             $response instanceof Stringable => new Response($response->__toString(), 200, ['Content-Type' => 'text/html']),
-            default => new Response($response, 200),
+            default => new Response($response, 200, ['Content-Type' => 'text/html']),
         };
 
         return $response->prepare($request);
@@ -252,7 +256,7 @@ class Router implements RouterInterface
         return (new Route($method, $uri, $action, $name))->setRouter($this);
     }
 
-    protected function prefix($uri): string
+    protected function prefix(string $uri): string
     {
         return trim(trim($this->getLastGroupPrefix(), '/').'/'.trim($uri, '/'), '/') ?: '/';
     }
@@ -301,5 +305,35 @@ class Router implements RouterInterface
         }
 
         return (new RouteRegistrar($this))->attribute($method, array_key_exists(0, $parameters) ? $parameters[0] : true);
+    }
+
+    public function substituteBindings(Route $route): Route
+    {
+        foreach ($route->parameters() as $key => $parameter){
+            if(isset($this->binders[$key])){
+
+            }
+        }
+
+        return $route;
+    }
+
+    public function substituteImplicitBindings(Route $route): mixed
+    {
+       $default = fn() => ImplicitRouteBinding::resolveForRoute($this->app,$route);
+
+        return call_user_func(
+            $this->implicitBindingCallback ?? $default, $this->app, $route, $default
+        );
+    }
+
+    public function getImplicitBindingCallback(): ?Closure
+    {
+        return $this->implicitBindingCallback;
+    }
+
+    public function setImplicitBindingCallback(?Closure $implicitBindingCallback): void
+    {
+        $this->implicitBindingCallback = $implicitBindingCallback;
     }
 }
