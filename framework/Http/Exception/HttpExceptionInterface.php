@@ -2,7 +2,9 @@
 
 namespace Framework\Kernel\Http\Exception;
 
-interface HttpExceptionInterface
+interface HttpExceptionInterface extends \Throwable
 {
+    public function getStatusCode(): int;
 
+    public function getHeaders(): array;
 }

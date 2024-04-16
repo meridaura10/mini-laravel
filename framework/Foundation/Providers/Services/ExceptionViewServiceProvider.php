@@ -24,7 +24,7 @@ class ExceptionViewServiceProvider extends ServiceProvider
         });
 
         $this->booted(function (){
-            view()->getFinder()->addNamespace('error', __DIR__ . "../../../Exceptions/resources/views");
+            view()->getFinder()->addNamespace('errors', $this->app->basePath('framework/Foundation/Exceptions/resources/views'));
         });
     }
 

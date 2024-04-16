@@ -2,10 +2,10 @@
 
 namespace Framework\Kernel\Http\Exception;
 
-class NotFoundHttpException extends \Exception
+class NotFoundHttpException extends HttpException
 {
-    public function __construct($message, $code = 405, mixed $previous = null)
+    public function __construct(string $message = '', ?\Throwable $previous = null, int $code = 0, array $headers = [])
     {
-        parent::__construct($message, $code, $previous);
+        parent::__construct(404, $message, $previous, $headers, $code);
     }
 }

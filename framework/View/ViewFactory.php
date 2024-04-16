@@ -4,6 +4,9 @@ namespace Framework\Kernel\View;
 
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Contracts\Support\Arrayable;
+use Framework\Kernel\Support\Arr;
+use Framework\Kernel\View\Concerns\ManagesLayouts;
+use Framework\Kernel\View\Concerns\ManagesLoops;
 use Framework\Kernel\View\Contracts\EngineInterface;
 use Framework\Kernel\View\Contracts\EngineResolverInterface;
 use Framework\Kernel\View\Contracts\FileViewFinderInterface;
@@ -13,6 +16,8 @@ use Framework\Kernel\View\Exceptions\InvalidArgumentException;
 
 class ViewFactory implements ViewFactoryInterface
 {
+    use ManagesLoops;
+    use ManagesLayouts;
     protected array $extensions = [
         'blade.php' => 'blade',
         'php' => 'php',
@@ -65,6 +70,30 @@ class ViewFactory implements ViewFactoryInterface
         $engine = $this->extensions[$extension];
 
         return $this->engines->resolve($engine);
+    }
+
+    public function exists(string $view): bool
+    {
+        try {
+            $this->finder->find($view);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function first(array $views,array $data = [],array $mergeData = []): ViewInterface
+    {
+        $view = Arr::first($views, function ($view) {
+            return $this->exists($view);
+        });
+
+        if (! $view) {
+            throw new InvalidArgumentException('None of the views in the given array exist.');
+        }
+
+        return $this->make($view, $data, $mergeData);
     }
 
     protected function getExtension($path): ?string

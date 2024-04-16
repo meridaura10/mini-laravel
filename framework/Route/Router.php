@@ -11,7 +11,7 @@ use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
 use Framework\Kernel\Http\Responses\Contracts\ResponseInterface;
 use Framework\Kernel\Http\Responses\JsonResponse;
 use Framework\Kernel\Http\Responses\Response;
-use Framework\Kernel\Pipeline\Pipeline;
+use Framework\Kernel\Pipeline\BasePipeline;
 use Framework\Kernel\Route\Contracts\RouteRegistrarInterface;
 use Framework\Kernel\Route\Contracts\RouterInterface;
 use JsonSerializable;

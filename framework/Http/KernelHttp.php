@@ -10,8 +10,9 @@ use Framework\Kernel\Http\Contracts\KernelInterface;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
 use Framework\Kernel\Http\Requests\Request;
 use Framework\Kernel\Http\Responses\Contracts\ResponseInterface;
-use Framework\Kernel\Pipeline\Pipeline;
+use Framework\Kernel\Pipeline\BasePipeline;
 use Framework\Kernel\Route\Contracts\RouterInterface;
+use Framework\Kernel\Route\Pipeline;
 use Throwable;
 
 class KernelHttp implements KernelInterface

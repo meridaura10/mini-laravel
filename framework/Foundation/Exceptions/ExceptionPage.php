@@ -60,7 +60,7 @@ class ExceptionPage implements ExceptionPageInterface
 
     public static function view(string $viewName): string
     {
-        return "error::$viewName";
+        return "errors::$viewName";
     }
 
     protected function createReport(): Report

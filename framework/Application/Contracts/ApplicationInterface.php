@@ -27,4 +27,6 @@ interface ApplicationInterface extends ContainerInterface
     public function getLocale(): string;
 
     public function getFallbackLocale(): string;
+
+    public function basePath(string $path = ''): string;
 }

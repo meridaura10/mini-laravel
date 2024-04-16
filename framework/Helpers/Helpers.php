@@ -20,6 +20,17 @@ if (! function_exists('collect')) {
     }
 }
 
+if (! function_exists('__')) {
+    function __(?string $key = null,array $replace = [],array|string $locale = null): array|string|null
+    {
+        if (is_null($key)) {
+            return $key;
+        }
+
+        return trans($key, $replace, $locale);
+    }
+}
+
 if (! function_exists('app')) {
     function app($abstract = null): mixed
     {
@@ -144,6 +155,17 @@ if (! function_exists('trait_uses_recursive')) {
         }
 
         return $traits;
+    }
+}
+
+if (! function_exists('trans')) {
+    function trans(?string $key = null,array $replace = [],?string $locale = null): \Framework\Kernel\Translation\Contracts\TranslatorInterface|string|array|null
+    {
+        if (is_null($key)) {
+            return app('translator');
+        }
+
+        return app('translator')->get($key, $replace, $locale);
     }
 }
 

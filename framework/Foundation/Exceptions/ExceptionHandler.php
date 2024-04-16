@@ -4,15 +4,19 @@ namespace Framework\Kernel\Foundation\Exceptions;
 
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Contracts\Support\Responsable;
+use Framework\Kernel\Database\Exceptions\ModelNotFoundException;
 use Framework\Kernel\Foundation\Exceptions\Contracts\ExceptionHandlerInterface;
 use Framework\Kernel\Foundation\Exceptions\Contracts\ExceptionRendererInterface;
 use Framework\Kernel\Http\Exception\HttpExceptionInterface;
+use Framework\Kernel\Http\Exception\NotFoundHttpException;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
 use Framework\Kernel\Http\Responses\Contracts\ResponseInterface;
 use Framework\Kernel\Http\Responses\JsonResponse;
 use Framework\Kernel\Http\Responses\Response;
+use Framework\Kernel\Route\Exceptions\BackedEnumCaseNotFoundException;
 use Framework\Kernel\Route\Router;
 use Framework\Kernel\Support\Arr;
+use Framework\Kernel\Support\ViewErrorBag;
 use Framework\Kernel\Validator\Exceptions\ValidationException;
 use Throwable;
 use WeakMap;
@@ -56,6 +60,7 @@ class ExceptionHandler implements ExceptionHandlerInterface
 
         $e = $this->prepareException($e);
 
+
         return match (true) {
 //            $e instanceof HttpResponseException => $e->getResponse(),
 //            $e instanceof AuthenticationException => $this->unauthenticated($request, $e),
@@ -71,14 +76,53 @@ class ExceptionHandler implements ExceptionHandlerInterface
             : $this->prepareResponse($request, $e);
     }
 
-    protected function prepareResponse(RequestInterface $request, Throwable $e): ResponseInterface
+    protected function prepareResponse(RequestInterface $request, Throwable|HttpExceptionInterface $e): ResponseInterface
     {
 
         if (!$this->isHttpException($e) && config('app.debug')) {
             return $this->toIlluminateResponse($this->convertExceptionToResponse($e), $e)->prepare($request);
         }
+
+
+        return $this->toIlluminateResponse(
+            $this->renderHttpException($e), $e
+        )->prepare($request);
     }
 
+    protected function renderHttpException(HttpExceptionInterface $e): ResponseInterface
+    {
+        if($view = $this->getHttpExceptionView($e)){
+            try {
+                return response()->view($view, [
+                    'errors' => new ViewErrorBag(),
+                    'exception' => $e,
+                ], $e->getStatusCode(), $e->getHeaders());
+            } catch (Throwable $t) {
+                config('app.debug') && throw $t;
+
+                $this->report($t);
+            }
+        }
+
+        return $this->convertExceptionToResponse($e);
+    }
+
+    protected function getHttpExceptionView(HttpExceptionInterface $e): ?string
+    {
+        $view = 'errors::'.$e->getStatusCode();
+
+        if (view()->exists($view)) {
+            return $view;
+        }
+
+        $view = substr($view, 0, -2).'xx';
+
+        if (view()->exists($view)) {
+            return $view;
+        }
+
+        return null;
+    }
 
     protected function toIlluminateResponse(ResponseInterface $response): ResponseInterface
     {
@@ -158,7 +202,11 @@ class ExceptionHandler implements ExceptionHandlerInterface
 
     protected function prepareException(Throwable $e): Throwable
     {
-        return $e;
+        return match (true) {
+            $e instanceof BackedEnumCaseNotFoundException => new NotFoundHttpException($e->getMessage(), $e),
+            $e instanceof ModelNotFoundException => new NotFoundHttpException($e->getMessage(), $e),
+            default => $e,
+        };
     }
 
 

@@ -8,7 +8,7 @@ use Framework\Kernel\Container\Contracts\ContainerInterface;
 use Framework\Kernel\Pipeline\Contracts\PipelineInterface;
 use RuntimeException;
 
-class Pipeline implements PipelineInterface
+class BasePipeline implements PipelineInterface
 {
     protected string $method = 'handle';
 
@@ -68,7 +68,9 @@ class Pipeline implements PipelineInterface
                         $pipe = $this->getContainer()->make($pipe);
                     }
 
-                    return $pipe->{$this->method}($passable, $stack);
+                    $carry = $pipe->{$this->method}($passable, $stack);
+
+                    return $this->handleCarry($carry);
                 }catch (\Throwable $e){
                     return $this->handleException($passable, $e);
                 }
@@ -90,14 +92,19 @@ class Pipeline implements PipelineInterface
     protected function getContainer(): ContainerInterface
     {
         if (! $this->container) {
-            throw new RuntimeException('A container instance has not been passed to the Pipeline.');
+            throw new RuntimeException('A container instance has not been passed to the BasePipeline.');
         }
 
         return $this->container;
     }
 
-    protected function handleException($passable, \Throwable $e): \Throwable
+    protected function handleCarry(mixed $carry): mixed
     {
-        throw $e;
+        return $carry;
+    }
+
+    protected function handleException($passable, \Throwable $throwable): mixed
+    {
+        throw $throwable;
     }
 }

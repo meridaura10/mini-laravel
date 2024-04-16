@@ -22,4 +22,7 @@ interface ViewFactoryInterface
 
     public function getShared(): array;
 
+    public function exists(string $view): bool;
+
+    public function first(array $views,array $data = [],array $mergeData = []): ViewInterface;
 }

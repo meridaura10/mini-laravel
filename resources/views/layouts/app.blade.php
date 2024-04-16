@@ -8,6 +8,8 @@
     <title>Document</title>
 </head>
 <body>
- test blade page
+    @include('layouts.app.header')
+
+    @yield('content')
 </body>
 </html>
