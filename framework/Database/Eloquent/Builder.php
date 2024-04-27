@@ -7,8 +7,11 @@ use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
 use Framework\Kernel\Database\Eloquent\Relations\Relation;
 use Framework\Kernel\Database\Exceptions\RelationNotFoundException;
+use Framework\Kernel\Database\Pagination\Contracts\LengthAwarePaginatorInterface;
+use Framework\Kernel\Database\Pagination\Paginator;
 use Framework\Kernel\Database\Query\Support\Traits\ForwardsCallsTrait;
 use Framework\Kernel\Database\Traits\BuildsQueriesTrait;
+use Framework\Kernel\Support\Arr;
 
 class Builder implements BuilderInterface
 {
@@ -143,6 +146,70 @@ class Builder implements BuilderInterface
 
         return $relation;
     }
+
+    public function update(array $values): int
+    {
+        return $this->toBase()->update($this->addUpdatedAtColumn($values));
+    }
+
+    protected function addUpdatedAtColumn(array $values)
+    {
+        if (! $this->model->usesTimestamps() ||
+            is_null($this->model->getUpdatedAtColumn())) {
+            return $values;
+        }
+
+        $column = $this->model->getUpdatedAtColumn();
+
+        if (! array_key_exists($column, $values)) {
+            $timestamp = $this->model->freshTimestampString();
+
+            if (
+                $this->model->hasSetMutator($column)
+                || $this->model->hasAttributeSetMutator($column)
+                || $this->model->hasCast($column)
+            ) {
+                $timestamp = $this->model->newInstance()
+                    ->forceFill([$column => $timestamp])
+                    ->getAttributes()[$column] ?? $timestamp;
+            }
+
+            $values = array_merge([$column => $timestamp], $values);
+        }
+
+        $segments = preg_split('/\s+as\s+/i', $this->query->from);
+
+        $qualifiedColumn = end($segments).'.'.$column;
+
+        $values[$qualifiedColumn] = Arr::get($values, $qualifiedColumn, $values[$column]);
+
+        unset($values[$column]);
+
+        return $values;
+    }
+
+    public function paginate(Closure|int|null $perPage = null,array|string $columns = ['*'],string $pageName = 'page',?int $page = null): LengthAwarePaginatorInterface
+    {
+        $page = $page ?: Paginator::resolveCurrentPage($pageName);
+
+        $total = func_num_args() === 5 ? value(func_get_arg(4)) : $this->toBase()->getCountForPagination();
+
+        $perPage = ($perPage instanceof Closure
+            ? $perPage($total)
+            : $perPage
+        ) ?: $this->model->getPerPage();
+
+        $results = $total
+            ? $this->forPage(3, $perPage)->get($columns)
+            : $this->model->newCollection();
+
+            return $this->paginator($results,$total,$perPage,$page,[
+            'path' => Paginator::resolveCurrentPath(),
+            'pageName' => $pageName,
+        ]);
+    }
+
+
 
     protected function relationsNestedUnder(string $relation): array
     {

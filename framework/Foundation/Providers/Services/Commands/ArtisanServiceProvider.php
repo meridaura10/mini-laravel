@@ -8,6 +8,7 @@ use Framework\Kernel\Console\Commands\Artisan\Dev\FactoryMakeCommand;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ModelMakeCommand;
 use Framework\Kernel\Console\Commands\Artisan\Dev\RequestMakeCommand;
 use Framework\Kernel\Console\Commands\Artisan\Dev\ServeCommand;
+use Framework\Kernel\Console\Commands\Artisan\Prod\Storage\StorageLinkCommand;
 use Framework\Kernel\Console\Commands\Database\Seeders\SeedCommand;
 use Framework\Kernel\Console\Commands\Database\Seeders\SeederMakeCommand;
 use Framework\Kernel\Foundation\Providers\Contracts\DeferrableProviderInterface;
@@ -17,6 +18,7 @@ class ArtisanServiceProvider extends ServiceProvider implements DeferrableProvid
 {
     protected array $commands = [
         'Seed' => SeedCommand::class,
+        'StorageLink' => StorageLinkCommand::class,
     ];
 
     protected array $devCommands = [

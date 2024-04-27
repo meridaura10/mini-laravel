@@ -20,9 +20,55 @@ class RouteCollection
     {
         $this->addToCollections($route);
 
-        //        $this->addLookups($route);
+        $this->addLookups($route);
 
         return $route;
+    }
+
+    protected function addLookups(Route $route): void
+    {
+        if ($name = $route->getName()) {
+            $this->nameList[$name] = $route;
+        }
+
+
+        $action = $route->getAction();
+
+        if (isset($action['controller'])) {
+            $this->addToActionList($action, $route);
+        }
+    }
+
+    public function refreshNameLookups(): void
+    {
+        $this->nameList = [];
+
+        foreach ($this->allRoutes as $route) {
+            if ($route->getName()) {
+                $this->nameList[$route->getName()] = $route;
+            }
+        }
+    }
+
+    public function refreshActionLookups(): void
+    {
+        $this->actionList = [];
+
+        foreach ($this->allRoutes as $route) {
+            if (isset($route->getAction()['controller'])) {
+                $this->addToActionList($route->getAction(), $route);
+            }
+        }
+    }
+
+    protected function addToActionList(array $action,Route $route): void
+    {
+        $this->actionList[trim($action['controller'], '\\')] = $route;
+    }
+
+    public function getByName(string $name): ?Route
+    {
+        return $this->nameList[$name] ?? null;
     }
 
     protected function addToCollections(Route $route): void
@@ -104,6 +150,10 @@ class RouteCollection
                 return $this->matchAgainstRoutes($this->get($method), $request);
             }
         ));
+    }
 
+    public function getNameList(): array
+    {
+        return $this->nameList;
     }
 }

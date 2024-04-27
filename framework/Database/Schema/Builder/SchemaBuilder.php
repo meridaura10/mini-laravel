@@ -14,6 +14,8 @@ class SchemaBuilder implements SchemaBuilderInterface
 
     public static bool $alwaysUsesNativeSchemaOperationsIfPossible = false;
 
+    public static string $defaultMorphKeyType = 'int';
+
     protected SchemaGrammar $grammar;
 
     public function __construct(

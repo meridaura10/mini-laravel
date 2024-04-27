@@ -9,10 +9,8 @@ use Framework\Kernel\Database\Contracts\BuilderInterface;
 use Framework\Kernel\Database\Contracts\ConnectionInterface;
 use Framework\Kernel\Database\Contracts\ExpressionInterface;
 use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
-use Framework\Kernel\Database\Eloquent\Builder;
-use Framework\Kernel\Database\Eloquent\Relations\Relation;
 use Framework\Kernel\Database\Expression;
-use Framework\Kernel\Database\Grammar;
+use Framework\Kernel\Database\Query\Grammars\Grammar;
 use Framework\Kernel\Database\Query\Processors\Processor;
 use Framework\Kernel\Database\Traits\BuildsQueriesTrait;
 use Framework\Kernel\Support\Arr;
@@ -48,11 +46,15 @@ class QueryBuilder implements QueryBuilderInterface
 
     public array $wheres = [];
 
+    public array $groups = [];
+
     public array $aggregate = [];
     public ?array $orders = null;
 
 
     protected Grammar $grammar;
+
+    public ?int $offset = null;
 
     protected Processor $processor;
 
@@ -148,6 +150,75 @@ class QueryBuilder implements QueryBuilderInterface
         return $this;
     }
 
+    public function update(array $values): int
+    {
+        $sql = $this->grammar->compileUpdate($this, $values);
+
+        return $this->connection->update($sql, $this->cleanBindings(
+            $this->grammar->prepareBindingsForUpdate($this->bindings, $values)
+        ));
+    }
+
+    public function forPage(int $page,int $perPage = 15): static
+    {
+        return $this->offset(($page - 1) * $perPage)->limit($perPage);
+    }
+
+    public function offset(int $value): static
+    {
+        $property = $this->unions ? 'unionOffset' : 'offset';
+
+        $this->{$property} = max(0,$value);
+
+        return $this;
+    }
+
+    public function getCountForPagination(array $columns = ['*']): int
+    {
+        $results = $this->runPaginationCountQuery($columns);
+
+        if (! isset($results[0])) {
+            return 0;
+        } elseif (is_object($results[0])) {
+            return (int) $results[0]->aggregate;
+        }
+
+        return (int) array_change_key_case((array) $results[0])['aggregate'];
+    }
+
+    protected function runPaginationCountQuery(array $columns = ['*']): array
+    {
+        if ($this->groups || $this->havings) {
+            $clone = $this->cloneForPaginationCount();
+
+            if (is_null($clone->columns) && ! empty($this->joins)) {
+                $clone->select($this->from.'.*');
+            }
+
+            return $this->newQuery()
+                ->from(new Expression('('.$clone->toSql().') as '.$this->grammar->wrap('aggregate_table')))
+                ->mergeBindings($clone)
+                ->setAggregate('count', $this->withoutSelectAliases($columns))
+                ->get()->all();
+        }
+
+        $without = $this->unions ? ['orders', 'limit', 'offset'] : ['columns', 'orders', 'limit', 'offset'];
+
+        return $this->cloneWithout($without)
+            ->cloneWithoutBindings($this->unions ? ['order'] : ['select', 'order'])
+            ->setAggregate('count', $this->withoutSelectAliases($columns))
+            ->get()->all();
+    }
+
+    protected function withoutSelectAliases(array $columns): array
+    {
+        return array_map(function ($column) {
+            return is_string($column) && ($aliasPosition = stripos($column, ' as ')) !== false
+                ? substr($column, 0, $aliasPosition) : $column;
+        }, $columns);
+    }
+
+
 //    public function selectSub(QueryBuilderInterface|BuilderInterface|string $query,string $as): static
 //    {
 //        [$query, $bindings] = $this->createSub($query);
@@ -190,6 +261,22 @@ class QueryBuilder implements QueryBuilderInterface
         return $this;
     }
 
+    public function whereNotNull(array|Expression|string $columns, string $boolean = 'and'): static
+    {
+        return $this->whereNull($columns, $boolean, true);
+    }
+
+    public function whereNull(array|Expression|string $columns, string $boolean = 'and', bool $not = false): static
+    {
+        $type = $not ? 'NotNull' : 'Null';
+
+        foreach (Arr::wrap($columns) as $column) {
+            $this->wheres[] = compact('type', 'column', 'boolean');
+        }
+
+        return $this;
+    }
+
     public function orderBy(BuilderInterface|Closure|string|ExpressionInterface|QueryBuilderInterface $column, bool $direction = true): static
     {
         $direction = $direction ? 'asc' : 'desc';
@@ -213,7 +300,7 @@ class QueryBuilder implements QueryBuilderInterface
             $value instanceof Closure;
     }
 
-    public function where(string|ExpressionInterface|Closure|array $column,mixed $operator = null,mixed $value = null,string $boolean = 'and'): static
+    public function where(string|ExpressionInterface|Closure|array $column, mixed $operator = null, mixed $value = null, string $boolean = 'and'): static
     {
         if ($column instanceof ExpressionInterface) {
             $type = 'Expression';
@@ -226,7 +313,6 @@ class QueryBuilder implements QueryBuilderInterface
         if (is_array($column)) {
             return $this->addArrayOfWheres($column, $boolean);
         }
-
 
 
         [$value, $operator] = $this->prepareValueAndOperator(
@@ -251,21 +337,21 @@ class QueryBuilder implements QueryBuilderInterface
             'type', 'column', 'operator', 'value', 'boolean'
         );
 
-        if (! $value instanceof ExpressionInterface) {
+        if (!$value instanceof ExpressionInterface) {
             $this->addBinding($this->flattenValue($value));
         }
 
         return $this;
     }
 
-    public function whereNested(Closure $callback,string $boolean = 'and'): static
+    public function whereNested(Closure $callback, string $boolean = 'and'): static
     {
         $callback($query = $this->forNestedWhere());
 
         return $this->addNestedWhereQuery($query, $boolean);
     }
 
-    public function addNestedWhereQuery(QueryBuilderInterface $query,string $boolean = 'and'): static
+    public function addNestedWhereQuery(QueryBuilderInterface $query, string $boolean = 'and'): static
     {
         if (count($query->wheres)) {
             $type = 'Nested';
@@ -299,9 +385,9 @@ class QueryBuilder implements QueryBuilderInterface
         return is_array($value) ? head(Arr::flatten($value)) : $value;
     }
 
-    public function addBinding(mixed $value,string $type = 'where'): static
+    public function addBinding(mixed $value, string $type = 'where'): static
     {
-        if (! array_key_exists($type, $this->bindings)) {
+        if (!array_key_exists($type, $this->bindings)) {
             throw new InvalidArgumentException("Invalid binding type: {$type}.");
         }
 
@@ -328,7 +414,7 @@ class QueryBuilder implements QueryBuilderInterface
         $values = Arr::flatten($values);
 
         foreach ($values as &$value) {
-            $value = (int) $value;
+            $value = (int)$value;
         }
 
         $this->wheres[] = compact('type', 'column', 'values', 'boolean');
@@ -338,11 +424,11 @@ class QueryBuilder implements QueryBuilderInterface
 
     protected function invalidOperator(?string $operator): string
     {
-        return (! in_array(strtolower($operator), $this->operators, true) &&
-                ! in_array(strtolower($operator), $this->grammar->getOperators(), true));
+        return (!in_array(strtolower($operator), $this->operators, true) &&
+            !in_array(strtolower($operator), $this->grammar->getOperators(), true));
     }
 
-    public function prepareValueAndOperator(mixed $value,?string $operator,bool $useDefault = false): array
+    public function prepareValueAndOperator(mixed $value, ?string $operator, bool $useDefault = false): array
     {
         if ($useDefault) {
             return [$operator, '='];
@@ -353,10 +439,10 @@ class QueryBuilder implements QueryBuilderInterface
         return [$value, $operator];
     }
 
-    protected function invalidOperatorAndValue(mixed $operator,mixed $value): bool
+    protected function invalidOperatorAndValue(mixed $operator, mixed $value): bool
     {
         return is_null($value) && in_array($operator, $this->operators) &&
-            ! in_array($operator, ['=', '<>', '!=']);
+            !in_array($operator, ['=', '<>', '!=']);
     }
 
     public function pluck(string|ExpressionInterface $column, ?string $key = null): Collection
@@ -383,7 +469,7 @@ class QueryBuilder implements QueryBuilderInterface
             : $this->pluckFromObjectColumn($queryResult, $column, $key);
     }
 
-    protected function pluckFromObjectColumn(array $queryResult,string $column, ?string $key = null): Collection
+    protected function pluckFromObjectColumn(array $queryResult, string $column, ?string $key = null): Collection
     {
         $results = [];
 
@@ -402,8 +488,8 @@ class QueryBuilder implements QueryBuilderInterface
 
     public function delete(mixed $id = null): int
     {
-        if (! is_null($id)) {
-            $this->where($this->from.'.id', '=', $id);
+        if (!is_null($id)) {
+            $this->where($this->from . '.id', '=', $id);
         }
 
         return $this->connection->delete(
@@ -411,7 +497,6 @@ class QueryBuilder implements QueryBuilderInterface
             $this->grammar->prepareBindingsForDelete($this->bindings)
         ));
     }
-
 
 
     protected function stripTableForPluck(?string $column = null): ?string
@@ -426,7 +511,7 @@ class QueryBuilder implements QueryBuilderInterface
 
         $separator = str_contains(strtolower($columnString), ' as ') ? ' as ' : '\.';
 
-        $parts = preg_split('~'.$separator.'~i', $columnString);
+        $parts = preg_split('~' . $separator . '~i', $columnString);
         return end($parts);
     }
 
@@ -465,12 +550,12 @@ class QueryBuilder implements QueryBuilderInterface
     public function aggregate(string $function, array $columns = ['*']): mixed
     {
         $results = $this->cloneWithout($this->unions || $this->havings ? [] : ['columns'])
-                         ->cloneWithoutBindings($this->unions || $this->havings ? [] : ['select'])
-                         ->setAggregate($function, $columns)
-                          ->get($columns);
+            ->cloneWithoutBindings($this->unions || $this->havings ? [] : ['select'])
+            ->setAggregate($function, $columns)
+            ->get($columns);
 
-        if (! $results->isEmpty()) {
-            return array_change_key_case((array) $results[0])['aggregate'];
+        if (!$results->isEmpty()) {
+            return array_change_key_case((array)$results[0])['aggregate'];
         }
 
         return 0;
@@ -483,7 +568,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     public function count($columns = '*'): mixed
     {
-        return (int) $this->aggregate(__FUNCTION__, Arr::wrap($columns));
+        return (int)$this->aggregate(__FUNCTION__, Arr::wrap($columns));
     }
 
     public function clone(): static
@@ -493,11 +578,11 @@ class QueryBuilder implements QueryBuilderInterface
 
     public function insert(array $values): bool
     {
-        if(empty($values)){
+        if (empty($values)) {
             return true;
         }
 
-        if (! is_array(reset($values))) {
+        if (!is_array(reset($values))) {
             $values = [$values];
         } else {
             foreach ($values as $key => $value) {

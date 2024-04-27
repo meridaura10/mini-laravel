@@ -10,7 +10,7 @@ trait HasTimestampsTrait
 
     const UPDATED_AT = 'updated_at';
 
-    protected bool $timestamps = true;
+    public bool $timestamps = true;
 
     public function freshTimestamp(): Carbon
     {

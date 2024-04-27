@@ -6,6 +6,7 @@ use ArrayAccess;
 use Closure;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Container\Contracts\ContainerInterface;
+use Framework\Kernel\Database\Pagination\LengthAwarePaginator;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionNamedType;
@@ -23,7 +24,11 @@ class Container implements ArrayAccess, ContainerInterface
 
     protected array $instances = [];
 
+    protected array $resolved = [];
+
     protected array $buildStack = [];
+
+    protected array $with = [];
 
     protected array $resolvingCallbacks = [];
 
@@ -31,8 +36,9 @@ class Container implements ArrayAccess, ContainerInterface
 
     protected array $globalAfterResolvingCallbacks = [];
 
-
     protected array $afterResolvingCallbacks = [];
+
+    protected array $reboundCallbacks = [];
 
 
     public function bind(string $abstraction, callable|string $concrete, $shared = false): void
@@ -45,15 +51,17 @@ class Container implements ArrayAccess, ContainerInterface
         $this->bind($abstraction, $concrete, true);
     }
 
-    public function make(string $abstraction): mixed
+    public function make(string $abstraction, array $parameters = []): mixed
     {
-        return $this->resolve($abstraction);
+        return $this->resolve($abstraction, $parameters);
     }
 
 
-    public function resolve(string $abstraction, bool $raiseEvents = true): mixed
+    public function resolve(string $abstraction, array $parameters = [], bool $raiseEvents = true): mixed
     {
         $abstraction = $this->getAlias($abstraction);
+
+        $this->with[] = $parameters;
 
         $concrete = $this->getConcrete($abstraction);
 
@@ -74,6 +82,10 @@ class Container implements ArrayAccess, ContainerInterface
         if ($raiseEvents) {
             $this->fireResolvingCallbacks($abstraction, $object);
         }
+
+        array_pop($this->with);
+
+        $this->resolved[$abstraction] = true;
 
         return $object;
     }
@@ -156,20 +168,16 @@ class Container implements ArrayAccess, ContainerInterface
 
     private function build(callable|string $concrete): mixed
     {
-        try {
-            if (is_callable($concrete)) {
-                return $concrete($this);
-            }
-
-            $reflector = new ReflectionClass($concrete);
-
-            return $this->reflectionBuild($reflector, $concrete);
-        } catch (\Exception $exception) {
-            throw new \Exception('error to method build in container concrete = ' . $concrete);
+        if (is_callable($concrete)) {
+            return $concrete($this);
         }
+
+        $reflector = new ReflectionClass($concrete);
+
+        return $this->reflectionBuild($reflector, $concrete);
     }
 
-    private function reflectionBuild($reflector, $concrete = null)
+    private function reflectionBuild(ReflectionClass $reflector, $concrete = null)
     {
         $constructor = $reflector->getConstructor();
 
@@ -184,11 +192,42 @@ class Container implements ArrayAccess, ContainerInterface
         return $reflector->newInstanceArgs($dependencies);
     }
 
+    public function resolved(string $abstract): bool
+    {
+        if ($this->isAlias($abstract)) {
+            $abstract = $this->getAlias($abstract);
+        }
+
+        return isset($this->resolved[$abstract]) ||
+            isset($this->instances[$abstract]);
+    }
+
+    public function refresh(string $abstract, mixed $target, string $method): mixed
+    {
+        return $this->rebinding($abstract, function ($app, $instance) use ($target, $method) {
+            $target->{$method}($instance);
+        });
+    }
+
+    public function rebinding(string $abstract, Closure $callback): mixed
+    {
+        $this->reboundCallbacks[$abstract = $this->getAlias($abstract)][] = $callback;
+
+        if ($this->bound($abstract)) {
+            return $this->make($abstract);
+        }
+    }
+
     private function resolveDependencies($parameters): array
     {
         $dependencies = [];
 
         foreach ($parameters as $parameter) {
+            if ($this->hasParameterOverride($parameter)) {
+                $dependencies[] = $this->getParameterOverride($parameter);
+
+                continue;
+            }
 
             $result = is_null($this->getParameterClassName($parameter))
                 ? $this->resolvePrimitive($parameter)
@@ -198,6 +237,23 @@ class Container implements ArrayAccess, ContainerInterface
         }
 
         return $dependencies;
+    }
+
+    protected function hasParameterOverride(ReflectionParameter $dependency): bool
+    {
+        return array_key_exists(
+            $dependency->name, $this->getLastParameterOverride()
+        );
+    }
+
+    protected function getParameterOverride(ReflectionParameter $dependency): mixed
+    {
+        return $this->getLastParameterOverride()[$dependency->name];
+    }
+
+    protected function getLastParameterOverride(): array
+    {
+        return count($this->with) ? end($this->with) : [];
     }
 
     public function has(string $id): bool

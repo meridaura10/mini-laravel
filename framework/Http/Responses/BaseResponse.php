@@ -273,10 +273,14 @@ class BaseResponse implements ResponseInterface
 
     public function setContent(?string $content): static
     {
-
         $this->content = $content ?? '';
 
         return $this;
+    }
+
+    public function isRedirect(?string $location = null): bool
+    {
+        return \in_array($this->statusCode, [201, 301, 302, 303, 307, 308]) && (null === $location ?: $location == $this->headers->get('Location'));
     }
 
     public function getContent(): false|string

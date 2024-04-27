@@ -43,6 +43,11 @@ abstract class Factory
 
     public function create(array $attributes = [], ?Model $parent = null): EloquentCollection
     {
+        if (! empty($attributes)) {
+            return $this->state($attributes)->create([], $parent);
+        }
+
+
         $results = $this->make($attributes, $parent);
 
         $this->store($results);
@@ -271,10 +276,12 @@ abstract class Factory
     public static function resolveFactoryName(string $modelName): string
     {
         $resolver = static::$factoryNameResolver ?? function (string $modelName) {
+
             $appNamespace = static::appNamespace();
 
-            $modelName = Str::startsWith($modelName, $appNamespace . 'Models\\')
-                ? Str::after($modelName, $appNamespace . 'Models\\')
+
+            $modelName = Str::startsWith($modelName, $appNamespace.'Models\\')
+                ? Str::after($modelName, $appNamespace.'Models\\')
                 : Str::after($modelName, $appNamespace);
 
             return static::$namespace . $modelName . 'Factory';

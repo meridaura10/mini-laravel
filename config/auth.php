@@ -19,6 +19,7 @@ return [
             'model' => App\Models\User::class,
         ],
     ],
+
     'passwords' => [
         'users' => [
             'provider' => 'users',

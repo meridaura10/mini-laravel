@@ -80,6 +80,11 @@ abstract class Grammar
         return $expression;
     }
 
+    protected function isJsonSelector(string $value): bool
+    {
+        return str_contains($value, '->');
+    }
+
     public function isExpression(mixed $value): bool
     {
         return $value instanceof ExpressionInterface;

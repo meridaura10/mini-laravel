@@ -2,14 +2,25 @@
 
 namespace Framework\Kernel\Validator\Bags;
 
+use Framework\Kernel\Contracts\Support\Arrayable;
 use Framework\Kernel\Support\Arr;
+use Framework\Kernel\Support\MessageProviderInterface;
 use Framework\Kernel\Support\Str;
 
-class MessageBag
+class MessageBag implements MessageProviderInterface, Arrayable
 {
     protected array $messages = [];
 
     protected string $format = ':message';
+
+    public function __construct(array $messages = [])
+    {
+        foreach ($messages as $key => $value) {
+            $value = $value instanceof Arrayable ? $value->toArray() : (array) $value;
+
+            $this->messages[$key] = array_unique($value);
+        }
+    }
 
     public function isNotEmpty(): bool
     {
@@ -137,4 +148,32 @@ class MessageBag
     {
         return $format ?: $this->format;
     }
+
+    public function getFormat(): string
+    {
+        return $this->format;
+    }
+
+    public function getMessages(): array
+    {
+        return $this->messages();
+    }
+
+    public function setFormat(string $format = ':message'): static
+    {
+        $this->format = $format;
+
+        return $this;
+    }
+
+    public function getMessageBag(): MessageBag
+    {
+        return $this;
+    }
+
+    public function toArray(): array
+    {
+        return $this->getMessages();
+    }
+
 }

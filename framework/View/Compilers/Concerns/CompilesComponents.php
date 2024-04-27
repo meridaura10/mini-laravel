@@ -2,10 +2,8 @@
 
 namespace Framework\Kernel\View\Compilers\Concerns;
 
-use Illuminate\Contracts\Support\CanBeEscapedWhenCastToString;
-use Illuminate\Support\Str;
-use Illuminate\View\AnonymousComponent;
-use Illuminate\View\ComponentAttributeBag;
+use Framework\Kernel\Support\Str;
+
 
 trait CompilesComponents
 {

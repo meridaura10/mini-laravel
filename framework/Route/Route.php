@@ -61,6 +61,32 @@ class Route
         return $this->method;
     }
 
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function getAction(): array
+    {
+        return $this->action;
+    }
+
+    public function httpOnly(): bool
+    {
+        return in_array('http', $this->action, true);
+    }
+
+    public function httpsOnly(): bool
+    {
+        return $this->secure();
+    }
+
+    public function secure(): bool
+    {
+        return in_array('https', $this->action, true);
+    }
+
+
     public function getDomain(): ?string
     {
         return isset($this->action['domain'])

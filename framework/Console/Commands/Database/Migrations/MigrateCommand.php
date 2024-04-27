@@ -39,6 +39,13 @@ class MigrateCommand extends BaseCommand
                     'pretend' => $this->option('pretend'),
                     'step' => $this->option('step'),
                 ]);
+
+            if ($this->option('seed') && ! $this->option('pretend')) {
+                $this->call('db:seed', [
+                    '--class' => $this->option('seeder') ?: 'Database\\Seeders\\DatabaseSeeder',
+                    '--force' => true,
+                ]);
+            }
         });
 
         return 0;

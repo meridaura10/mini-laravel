@@ -2,7 +2,9 @@
 
 namespace Framework\Kernel\Validator\Exceptions;
 
+use Framework\Kernel\Facades\Services\Validator;
 use Framework\Kernel\Http\Responses\Response;
+use Framework\Kernel\Support\Arr;
 use Framework\Kernel\Validator\Contracts\ValidatorInterface;
 
 class ValidationException extends \Exception
@@ -13,9 +15,20 @@ class ValidationException extends \Exception
     public function __construct(
        protected ValidatorInterface $validator,
        public ?Response $response = null,
-       protected  string $errorBag = 'default'
+       public  string $errorBag = 'default'
     ) {
         parent::__construct(static::summarize($validator));
+    }
+
+    public static function withMessages(array $messages): static
+    {
+        return new static(tap(Validator::make([], []), function ($validator) use ($messages) {
+            foreach ($messages as $key => $value) {
+                foreach (Arr::wrap($value) as $message) {
+                    $validator->errors()->add($key, $message);
+                }
+            }
+        }));
     }
 
     protected static function summarize(ValidatorInterface $validator): string

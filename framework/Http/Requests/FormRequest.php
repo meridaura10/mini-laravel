@@ -4,6 +4,7 @@ namespace Framework\Kernel\Http\Requests;
 
 use Framework\Kernel\Http\Requests\Contracts\ValidatesWhenResolvedInterface;
 use Framework\Kernel\Http\Requests\Traits\ValidatesWhenResolvedTrait;
+use Framework\Kernel\Route\Redirector\Contracts\RedirectorInterface;
 use Framework\Kernel\Validator\Contracts\ValidationFactoryInterface;
 use Framework\Kernel\Validator\Contracts\ValidatorInterface;
 use Framework\Kernel\Validator\ValidationFactory;
@@ -12,11 +13,18 @@ class FormRequest extends Request implements ValidatesWhenResolvedInterface
 {
     use ValidatesWhenResolvedTrait;
 
+
     protected ?ValidatorInterface $validator = null;
 
     protected bool $stopOnFirstFailure = false;
 
+    protected ?string $redirect = null;
+
     protected string $errorBag = 'default';
+
+    protected ?RedirectorInterface $redirector = null;
+
+    protected ?string $redirectRoute = null;
 
     public function validated(array|int|null|string $key = null,mixed $default = null): mixed
     {
@@ -34,18 +42,15 @@ class FormRequest extends Request implements ValidatesWhenResolvedInterface
 
     protected function getRedirectUrl(): string
     {
-        return '';
-//        $url = $this->redirector->getUrlGenerator();
-//
-//        if ($this->redirect) {
-//            return $url->to($this->redirect);
-//        } elseif ($this->redirectRoute) {
-//            return $url->route($this->redirectRoute);
-//        } elseif ($this->redirectAction) {
-//            return $url->action($this->redirectAction);
-//        }
-//
-//        return $url->previous();
+        $url = $this->redirector->getUrlGenerator();
+
+        if ($this->redirect) {
+            return $url->to($this->redirect);
+        } elseif ($this->redirectRoute) {
+            return $url->route($this->redirectRoute);
+        }
+
+        return $url->previous();
     }
 
     protected function getValidatorInstance(): ValidatorInterface
@@ -74,8 +79,11 @@ class FormRequest extends Request implements ValidatesWhenResolvedInterface
             ));
         }
 
+        $this->setValidator($validator);
+
         return $validator;
     }
+
 
     protected function createDefaultValidator(ValidationFactoryInterface $factory): ValidatorInterface
     {
@@ -102,8 +110,22 @@ class FormRequest extends Request implements ValidatesWhenResolvedInterface
         return $this->all();
     }
 
+    public function setRedirector(RedirectorInterface $redirector): static
+    {
+        $this->redirector = $redirector;
+
+        return $this;
+    }
+
     protected function validationRules(): array
     {
         return method_exists($this, 'rules') ? $this->app->call([$this, 'rules']) : [];
+    }
+
+    public function setValidator(ValidatorInterface $validator): static
+    {
+        $this->validator = $validator;
+
+        return $this;
     }
 }

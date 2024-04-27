@@ -1,0 +1,58 @@
+.my-container{
+  width: full;
+  max-width: 1444px;
+  margin: 0 auto;
+  padding: 0px 1em 0px 1em;
+}
+
+.brands-container {
+  .brands-list {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    list-style-type: none;
+    padding: 0;
+  }
+
+  .brand {
+    width: 210px;
+    height: 140px;
+    text-align: center;
+
+    .brand-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      transition: color 0.3s;
+
+      &:hover {
+        color: black;
+        text-decoration: underline;
+      }
+    }
+
+    .brand-image {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100px;
+
+      .brand-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+    }
+
+    .brand-details {
+      margin-top: 0.5rem;
+    }
+  }
+}
+
+.product {
+    transition: transform 0.2s ease;
+    &:hover {
+      transform: translateY(-4px);
+    }
+  }

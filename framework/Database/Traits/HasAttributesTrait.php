@@ -6,7 +6,12 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Framework\Kernel\Contracts\Support\Arrayable;
+use Framework\Kernel\Database\Eloquent\Casts\Attribute;
+use Framework\Kernel\Database\Exceptions\MissingAttributeException;
 use Framework\Kernel\Support\Arr;
+use Framework\Kernel\Support\Str;
+use ReflectionMethod;
+use ReflectionNamedType;
 
 trait HasAttributesTrait
 {
@@ -18,7 +23,14 @@ trait HasAttributesTrait
 
     protected array $visible = [];
 
+    protected array $casts = [];
+
     protected ?string $dateFormat = null;
+
+    protected static array $attributeMutatorCache = [];
+    protected static array $getAttributeMutatorCache = [];
+
+    protected array $attributeCastCache = [];
 
     public function setAttribute($key, $value): static
     {
@@ -47,6 +59,13 @@ trait HasAttributesTrait
             $this->getDirty(), is_array($attributes) ? $attributes : func_get_args()
         );
     }
+
+//    protected function mergeAttributesFromCachedCasts()
+//    {
+//        $this->mergeAttributesFromClassCasts();
+//        $this->mergeAttributesFromAttributeCasts();
+//    }
+
 
     public function getAttributes(): array
     {
@@ -235,32 +254,141 @@ trait HasAttributesTrait
             return null;
         }
 
-        if(array_key_exists($key, $this->attributes)){
-            return $this->attributes[$key];
+        if (array_key_exists($key, $this->attributes) ||
+            array_key_exists($key, $this->casts) ||
+            $this->hasGetMutator($key) ||
+            $this->hasAttributeMutator($key)) {
+            return $this->getAttributeValue($key);
+        }
+
+
+        return $this->isRelation($key) || $this->relationLoaded($key)
+            ? $this->getRelationValue($key)
+            : $this->throwMissingAttributeExceptionIfApplicable($key);
+    }
+
+    public function getAttributeValue(string $key): mixed
+    {
+        return $this->transformModelValue($key, $this->getAttributeFromArray($key));
+    }
+
+    protected function getAttributeFromArray(string $key): mixed
+    {
+        return $this->getAttributes()[$key] ?? null;
+    }
+
+    protected function transformModelValue(string $key, mixed $value): mixed
+    {
+        if ($this->hasGetMutator($key)) {
+            return $this->mutateAttribute($key, $value);
+        } elseif ($this->hasAttributeGetMutator($key)) {
+            return $this->mutateAttributeMarkedAttribute($key, $value);
+        }
+
+        return $value;
+    }
+
+    protected function mutateAttributeMarkedAttribute(string $key,mixed $value): mixed
+    {
+        if (array_key_exists($key, $this->attributeCastCache)) {
+            return $this->attributeCastCache[$key];
+        }
+
+        $attribute = $this->{Str::camel($key)}();
+
+        $value = call_user_func($attribute->get ?: function ($value) {
+            return $value;
+        }, $value, $this->attributes);
+
+        if ($attribute->withCaching || (is_object($value) && $attribute->withObjectCaching)) {
+            $this->attributeCastCache[$key] = $value;
+        } else {
+            unset($this->attributeCastCache[$key]);
+        }
+
+        return $value;
+    }
+
+    public function hasAttributeGetMutator(string $key): bool
+    {
+        if (isset(static::$getAttributeMutatorCache[get_class($this)][$key])) {
+            return static::$getAttributeMutatorCache[get_class($this)][$key];
+        }
+
+        if (! $this->hasAttributeMutator($key)) {
+            return static::$getAttributeMutatorCache[get_class($this)][$key] = false;
+        }
+
+        return static::$getAttributeMutatorCache[get_class($this)][$key] = is_callable($this->{Str::camel($key)}()->get);
+    }
+
+    protected function mutateAttribute(string $key,mixed $value): mixed
+    {
+        return $this->{'get'.Str::studly($key).'Attribute'}($value);
+    }
+
+    public function hasAttributeMutator(string $key): bool
+    {
+        if (isset(static::$attributeMutatorCache[get_class($this)][$key])) {
+            return static::$attributeMutatorCache[get_class($this)][$key];
+        }
+
+        if (! method_exists($this, $method = Str::camel($key))) {
+            return static::$attributeMutatorCache[get_class($this)][$key] = false;
+        }
+
+        $returnType = (new ReflectionMethod($this, $method))->getReturnType();
+
+        return static::$attributeMutatorCache[get_class($this)][$key] =
+            $returnType instanceof ReflectionNamedType &&
+            $returnType->getName() === Attribute::class;
+    }
+
+    public function hasGetMutator(string $key): bool
+    {
+        return method_exists($this, 'get'.Str::studly($key).'Attribute');
+    }
+
+    protected function throwMissingAttributeExceptionIfApplicable(?string $key): null
+    {
+        if ($this->exists &&
+            ! $this->wasRecentlyCreated &&
+            static::preventsAccessingMissingAttributes()) {
+            if (isset(static::$missingAttributeViolationCallback)) {
+                return call_user_func(static::$missingAttributeViolationCallback, $this, $key);
+            }
+
+            throw new MissingAttributeException($this, $key);
         }
 
         return null;
-        // If the attribute exists in the attribute array or has a "get" mutator we will
-        // get the attribute's value. Otherwise, we will proceed as if the developers
-        // are asking for a relationship's value. This covers both types of values.
-//        if (array_key_exists($key, $this->attributes) ||
-//            array_key_exists($key, $this->casts) ||
-//            $this->hasGetMutator($key) ||
-//            $this->hasAttributeMutator($key) ||
-//            $this->isClassCastable($key)) {
-//            return $this->getAttributeValue($key);
-//        }
-//
-//        // Here we will determine if the model base class itself contains this given key
-//        // since we don't want to treat any of those methods as relationships because
-//        // they are all intended as helper methods and none of these are relations.
-//        if (method_exists(self::class, $key)) {
-//            return $this->throwMissingAttributeExceptionIfApplicable($key);
-//        }
-//
-//        return $this->isRelation($key) || $this->relationLoaded($key)
-//            ? $this->getRelationValue($key)
-//            : $this->throwMissingAttributeExceptionIfApplicable($key);
+    }
+
+    public function getRelationValue(string $key): mixed
+    {
+        if ($this->relationLoaded($key)) {
+            return $this->relations[$key];
+        }
+
+
+        if (! $this->isRelation($key)) {
+            return null;
+        }
+
+        if ($this->preventsLazyLoading) {
+            $this->handleLazyLoadingViolation($key);
+        }
+
+        return $this->getRelationshipFromMethod($key);
+    }
+
+    public function isRelation(string $key): bool
+    {
+        if($this->hasAttributeMutator($key)){
+            return false;
+        }
+
+        return method_exists($this,$key) || $this->relationResolver(static::class, $key);
     }
 
     public function getVisible(): array

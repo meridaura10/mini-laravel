@@ -11,7 +11,7 @@ interface ContainerInterface
 
     public function singleton(string $abstraction, callable|string $concrete): void;
 
-    public function resolve(string $abstraction): mixed;
+    public function resolve(string $abstraction, array $parameters = []): mixed;
 
     public function make(string $abstraction): mixed;
 

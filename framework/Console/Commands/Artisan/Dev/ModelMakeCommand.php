@@ -72,7 +72,7 @@ class ModelMakeCommand extends GeneratorCommand
 
     protected function getDefaultNamespace(string $rootNamespace): string
     {
-        return is_dir(app_path('Models')) ? $rootNamespace.'\\Models' : $rootNamespace;
+        return is_dir(app_path('Model')) ? $rootNamespace.'\\Model' : $rootNamespace;
     }
 
     protected function getStub(): string

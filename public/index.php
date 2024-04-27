@@ -9,6 +9,8 @@ require_once APP_PATH.'/vendor/autoload.php';
 
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
+\Framework\Kernel\Support\Env::init(app()->basePath());
+
 $kernel = $app->make(KernelInterface::class);
 
 $kernel->handle(

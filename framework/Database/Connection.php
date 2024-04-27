@@ -88,6 +88,11 @@ class Connection implements ConnectionInterface
         return $grammar;
     }
 
+
+    public function update(string $query,array $bindings = []):int
+    {
+        return $this->affectingStatement($query, $bindings);
+    }
     public function query(): QueryBuilderInterface
     {
         return new QueryBuilder(

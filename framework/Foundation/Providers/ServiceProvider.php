@@ -31,9 +31,29 @@ abstract class ServiceProvider
         }
     }
 
-    public static function defaultProviders(): DefaultProvidersInterface
+    protected function loadViewsFrom(array|string $path,string $namespace)
     {
-        return new DefaultProviders();
+//        $this->callAfterResolving('view', function ($view) use ($path, $namespace) {
+//            if (isset($this->app->config['view']['paths']) &&
+//                is_array($this->app->config['view']['paths'])) {
+//                foreach ($this->app->config['view']['paths'] as $viewPath) {
+//                    if (is_dir($appPath = $viewPath.'/vendor/'.$namespace)) {
+//                        $view->addNamespace($namespace, $appPath);
+//                    }
+//                }
+//            }
+//
+//            $view->addNamespace($namespace, $path);
+//        });
+    }
+
+    protected function callAfterResolving(string $name,callable $callback): void
+    {
+        $this->app->afterResolving($name, $callback);
+
+        if ($this->app->resolved($name)) {
+            $callback($this->app->make($name), $this->app);
+        }
     }
 
     public function commands(mixed $commands): void
@@ -44,4 +64,11 @@ abstract class ServiceProvider
             $artisan->resolveCommands($commands);
         });
     }
+
+    public static function defaultProviders(): DefaultProvidersInterface
+    {
+        return new DefaultProviders();
+    }
+
+
 }

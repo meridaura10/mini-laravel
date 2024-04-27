@@ -2,6 +2,8 @@
 
 namespace Framework\Kernel\View\Compilers\Concerns;
 
+use Framework\Kernel\Foundation\Vite\Vite;
+
 trait CompilesHelpers
 {
     /**

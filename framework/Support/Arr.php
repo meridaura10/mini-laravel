@@ -6,6 +6,32 @@ use ArrayAccess;
 
 class Arr
 {
+    public static function prepend(array $array,mixed $value,mixed $key = null): array
+    {
+        if (func_num_args() == 2) {
+            array_unshift($array, $value);
+        } else {
+            $array = [$key => $value] + $array;
+        }
+
+        return $array;
+    }
+
+    public static function pull(&$array, $key, $default = null)
+    {
+        $value = static::get($array, $key, $default);
+
+        static::forget($array, $key);
+
+        return $value;
+    }
+
+    public static function query(array $array): string
+    {
+        return http_build_query($array, '', '&', PHP_QUERY_RFC3986);
+    }
+
+
     public static function set(&$array, $key, $value)
     {
         if (is_null($key)) {

@@ -29,6 +29,12 @@ class ExceptionHandler implements ExceptionHandlerInterface
 
     protected array $exceptionMap = [];
 
+    protected array $dontFlash = [
+        'current_password',
+        'password',
+        'password_confirmation',
+    ];
+
     public function __construct(protected ApplicationInterface $app)
     {
         $this->reportedExceptionMap = new WeakMap();
@@ -60,7 +66,6 @@ class ExceptionHandler implements ExceptionHandlerInterface
 
         $e = $this->prepareException($e);
 
-
         return match (true) {
 //            $e instanceof HttpResponseException => $e->getResponse(),
 //            $e instanceof AuthenticationException => $this->unauthenticated($request, $e),
@@ -78,7 +83,6 @@ class ExceptionHandler implements ExceptionHandlerInterface
 
     protected function prepareResponse(RequestInterface $request, Throwable|HttpExceptionInterface $e): ResponseInterface
     {
-
         if (!$this->isHttpException($e) && config('app.debug')) {
             return $this->toIlluminateResponse($this->convertExceptionToResponse($e), $e)->prepare($request);
         }
@@ -184,6 +188,13 @@ class ExceptionHandler implements ExceptionHandlerInterface
         return $this->shouldReturnJson($request, $e)
             ? $this->invalidJson($request, $e)
             : $this->invalid($request, $e);
+    }
+
+    protected function invalid(RequestInterface $request, ValidationException $exception): ResponseInterface
+    {
+        return redirect($exception->redirectTo ?? url()->previous())
+            ->withInput(Arr::except($request->input(), $this->dontFlash))
+            ->withErrors($exception->errors(), $request->input('_error_bag', $exception->errorBag));
     }
 
     protected function invalidJson(RequestInterface $request, ValidationException $exception): ResponseInterface

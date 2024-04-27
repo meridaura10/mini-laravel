@@ -7,10 +7,12 @@ use Framework\Kernel\Database\Contracts\QueryBuilderInterface;
 use Framework\Kernel\Database\Eloquent\Builder;
 use Framework\Kernel\Database\Query\JoinClause;
 use Framework\Kernel\Database\Query\QueryBuilder;
+use Framework\Kernel\Database\Traits\CompilesJsonPathsTrait;
 use Framework\Kernel\Support\Arr;
 
 class Grammar extends \Framework\Kernel\Database\Grammar
 {
+    use CompilesJsonPathsTrait;
     protected array $selectComponents = [
         'aggregate',
         'columns',
@@ -60,6 +62,11 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         return '('.substr($this->compileWheres($where['query']), $offset).')';
     }
 
+    protected function whereNotNull(QueryBuilderInterface $query,array $where): string
+    {
+        return $this->wrap($where['column']).' is not null';
+    }
+
     protected function compileDeleteWithoutJoins(QueryBuilderInterface $query,string $table,string $where): string
     {
         return "delete from {$table} {$where}";
@@ -97,6 +104,7 @@ class Grammar extends \Framework\Kernel\Database\Grammar
 
     public function compileSelect(QueryBuilder $query): string
     {
+
         if (($query->unions || $query->havings) && $query->aggregate) {
             return $this->compileUnionAggregate($query);
         }
@@ -116,7 +124,6 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         }
 
         $query->columns = $original;
-
 
         return $sql;
     }
@@ -143,13 +150,49 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         return 'select ' . $aggregate['function'] . '(' . $column . ') as aggregate';
     }
 
+    public function compileUpdate(QueryBuilderInterface $query, array $values): string
+    {
+        $table = $this->wrapTable($query->from);
+
+        $columns = $this->compileUpdateColumns($query, $values);
+
+        $where = $this->compileWheres($query);
+
+        return trim(
+            isset($query->joins)
+                ? $this->compileUpdateWithJoins($query, $table, $columns, $where)
+                : $this->compileUpdateWithoutJoins($query, $table, $columns, $where)
+        );
+    }
+
+    protected function compileUpdateWithoutJoins(QueryBuilderInterface $query,string $table,string $columns,string $where): string
+    {
+        return "update {$table} set {$columns} {$where}";
+    }
+
+    protected function compileUpdateColumns(QueryBuilderInterface $query, array $values): string
+    {
+        return collect($values)->map(function ($value, $key) {
+            return $this->wrap($key).' = '.$this->parameter($value);
+        })->implode(', ');
+    }
+
+    public function prepareBindingsForUpdate(array $bindings, array $values): array
+    {
+        $cleanBindings = Arr::except($bindings, ['select', 'join']);
+
+        return array_values(
+            array_merge($bindings['join'], $values, Arr::flatten($cleanBindings))
+        );
+    }
+
     protected function compileComponents(QueryBuilderInterface $query): array
     {
         $sql = [];
 
-
         try {
             foreach ($this->selectComponents as $component) {
+
                 if (!empty($query->{$component})) {
                     $method = 'compile' . ucfirst($component);
                     $sql[$component] = $this->{$method}($query, $query->{$component});
@@ -238,9 +281,14 @@ class Grammar extends \Framework\Kernel\Database\Grammar
         }, $orders);
     }
 
-    protected function compileLimit(QueryBuilderInterface $query, $limit): string
+    protected function compileLimit(QueryBuilderInterface $query,int $limit): string
     {
-        return 'limit ' . (int)$limit;
+        return 'limit ' . $limit;
+    }
+
+    protected function compileOffset(QueryBuilderInterface $query,int $offset): string
+    {
+        return 'offset '. $offset;
     }
 
     protected function concatenate(array $segments): string

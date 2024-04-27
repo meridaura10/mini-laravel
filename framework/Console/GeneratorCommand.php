@@ -174,8 +174,8 @@ abstract class GeneratorCommand extends Command
             return $model;
         }
 
-        return is_dir(app_path('Models'))
-            ? $rootNamespace.'Models\\'.$model
+        return is_dir(app_path('Model'))
+            ? $rootNamespace.'Model\\'.$model
             : $rootNamespace.$model;
     }
 

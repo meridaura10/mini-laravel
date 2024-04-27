@@ -29,6 +29,7 @@ abstract class AbstractRequestBag
         return array_key_exists($key, $this->parameters) ? $this->parameters[$key] : $default;
     }
 
+
     public function has(string $key): bool
     {
         return array_key_exists($key, $this->parameters);

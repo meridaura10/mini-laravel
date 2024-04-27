@@ -14,12 +14,14 @@ use Framework\Kernel\Http\Responses\Response;
 use Framework\Kernel\Pipeline\BasePipeline;
 use Framework\Kernel\Route\Contracts\RouteRegistrarInterface;
 use Framework\Kernel\Route\Contracts\RouterInterface;
+use Framework\Kernel\Route\Traits\AuthRoutersTrait;
 use JsonSerializable;
 use stdClass;
 use Stringable;
 
 class Router implements RouterInterface, RouteRegistrarInterface
 {
+    use AuthRoutersTrait;
     public static array $verbs = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
     protected array $groupStack = [];
@@ -70,9 +72,9 @@ class Router implements RouterInterface, RouteRegistrarInterface
         return (new Pipeline($this->app))
             ->send($request)
             ->through($middleware)
-            ->then(function (RequestInterface $request) use ($route) {
-                return $route->run();
-            });
+            ->then(fn ($request) => $this->prepareResponse(
+                $request, $route->run()
+            ));
     }
 
     protected function prepareResponse(RequestInterface $request, mixed $response): ResponseInterface
@@ -227,24 +229,26 @@ class Router implements RouterInterface, RouteRegistrarInterface
 
     protected function action(array|string $action): array
     {
+        $namespace = $this->getLastGroupNameSpace() ? $this->getLastGroupNameSpace() . '\\' : null;
+
         if (is_array($action)) {
             return [
-                'controller' => $action[0],
+                'controller' => $namespace . $action[0],
                 'uses' => $action[1],
             ];
         }
 
-        if (class_exists($action)) {
+        if (class_exists($namespace . $action)) {
             return [
                 'uses' => '__invoke',
-                'controller' => $action,
+                'controller' => $namespace . $action,
             ];
         }
 
         if (is_string($action)) {
             return [
                 'uses' => $action,
-                'controller' => $this->getLastGroupController(),
+                'controller' => $namespace . $this->getLastGroupController(),
             ];
         }
 
@@ -283,6 +287,17 @@ class Router implements RouterInterface, RouteRegistrarInterface
         return null;
     }
 
+    public function getLastGroupNameSpace(): ?string
+    {
+        if ($this->hasGroupStack()) {
+            $last = end($this->groupStack);
+
+            return $last['namespace'] ?? null;
+        }
+
+        return null;
+    }
+
     public function setMiddlewarePriority(array $middleware): void
     {
         $this->middlewarePriority = $middleware;
@@ -296,6 +311,14 @@ class Router implements RouterInterface, RouteRegistrarInterface
     public function setAliasMiddleware(string $name, string $middleware): void
     {
         $this->middleware[$name] = $middleware;
+    }
+
+    protected function prependGroupNamespace(string $class): string
+    {
+        $group = end($this->groupStack);
+
+        return isset($group['namespace']) && ! str_starts_with($class, '\\') && ! str_starts_with($class, $group['namespace'])
+            ? $group['namespace'].'\\'.$class : $class;
     }
 
     public function __call($method, $parameters): RouteRegistrar
@@ -335,5 +358,10 @@ class Router implements RouterInterface, RouteRegistrarInterface
     public function setImplicitBindingCallback(?Closure $implicitBindingCallback): void
     {
         $this->implicitBindingCallback = $implicitBindingCallback;
+    }
+
+    public function getRoutes(): RouteCollection
+    {
+        return $this->routes;
     }
 }

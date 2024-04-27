@@ -5,6 +5,7 @@ namespace Framework\Kernel\Database\Factories;
 use Framework\Kernel\Database\Eloquent\Model;
 use Framework\Kernel\Database\Eloquent\Relations\BelongsToMany;
 use Framework\Kernel\Database\Eloquent\Relations\HasOneOrMany;
+use Framework\Kernel\Database\Eloquent\Relations\MorphOneOrMany;
 use Framework\Kernel\Support\Collection;
 
 class RelationshipFactory
@@ -19,12 +20,12 @@ class RelationshipFactory
     public function createFor(Model $parent): void
     {
         $relationship = $parent->{$this->relationship}();
-//        if ($relationship instanceof MorphOneOrMany) {
-//            $this->factory->state([
-//                $relationship->getMorphType() => $relationship->getMorphClass(),
-//                $relationship->getForeignKeyName() => $relationship->getParentKey(),
-//            ])->create([], $parent);
-//        } else
+        if ($relationship instanceof MorphOneOrMany) {
+            $this->factory->state([
+                $relationship->getMorphType() => $relationship->getMorphClass(),
+                $relationship->getForeignKeyName() => $relationship->getParentKey(),
+            ])->create([], $parent);
+        } else
       if ($relationship instanceof HasOneOrMany) {
             $this->factory->state([
                 $relationship->getForeignKeyName() => $relationship->getParentKey(),

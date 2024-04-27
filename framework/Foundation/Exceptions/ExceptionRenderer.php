@@ -8,8 +8,6 @@ use Framework\Kernel\Foundation\Exceptions\Contracts\ExceptionRendererInterface;
 
 class ExceptionRenderer implements ExceptionRendererInterface
 {
-
-
     public function __construct(
         protected ExceptionPageInterface $page,
     ) {

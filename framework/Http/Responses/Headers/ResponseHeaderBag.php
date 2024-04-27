@@ -16,6 +16,8 @@ class ResponseHeaderBag extends HeaderBag
 
     protected array $cookies = [];
 
+    protected array $headerNames = [];
+
     public function __construct(array $headers = [])
     {
         parent::__construct($headers);
@@ -86,6 +88,12 @@ class ResponseHeaderBag extends HeaderBag
         }
 
         return $flattenedCookies;
+    }
+
+    public function setCookie(Cookie $cookie): void
+    {
+        $this->cookies[$cookie->getDomain()][$cookie->getPath()][$cookie->getName()] = $cookie;
+        $this->headerNames['set-cookie'] = 'Set-Cookie';
     }
 
     private function initDate(): void

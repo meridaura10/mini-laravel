@@ -2,6 +2,6 @@
 
 namespace Framework\Kernel\Filesystem\Contracts;
 
-interface FilesystemCloudInterface
+interface FilesystemCloudInterface extends FilesystemInterface
 {
 }

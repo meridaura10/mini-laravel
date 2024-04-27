@@ -5,6 +5,7 @@ namespace Framework\Kernel\View;
 use Framework\Kernel\Application\Contracts\ApplicationInterface;
 use Framework\Kernel\Contracts\Support\Arrayable;
 use Framework\Kernel\Support\Arr;
+use Framework\Kernel\View\Concerns\ManagerComponentsTrait;
 use Framework\Kernel\View\Concerns\ManagesLayouts;
 use Framework\Kernel\View\Concerns\ManagesLoops;
 use Framework\Kernel\View\Contracts\EngineInterface;
@@ -16,6 +17,7 @@ use Framework\Kernel\View\Exceptions\InvalidArgumentException;
 
 class ViewFactory implements ViewFactoryInterface
 {
+    use ManagerComponentsTrait;
     use ManagesLoops;
     use ManagesLayouts;
     protected array $extensions = [

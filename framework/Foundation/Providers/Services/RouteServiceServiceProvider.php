@@ -12,7 +12,18 @@ class RouteServiceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->booted(function () {
-            $this->loadRoutes();
+//            $this->setRootControllerNamespace();
+//
+//            if ($this->routesAreCached()) {
+//                $this->loadCachedRoutes();
+//            } else {
+                $this->loadRoutes();
+
+                $this->app->booted(function () {
+                    $this->app['router']->getRoutes()->refreshNameLookups();
+                    $this->app['router']->getRoutes()->refreshActionLookups();
+                });
+//            }
         });
     }
 

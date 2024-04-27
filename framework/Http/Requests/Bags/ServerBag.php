@@ -2,7 +2,7 @@
 
 namespace Framework\Kernel\Http\Requests\Bags;
 
-class ServerBag extends AbstractRequestBag
+class ServerBag extends ParameterBag
 {
     public function getHeaders(): array
     {

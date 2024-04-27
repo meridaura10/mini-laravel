@@ -18,6 +18,7 @@ use Framework\Kernel\Validator\Rules\ImplicitRule;
 use Framework\Kernel\Validator\Rules\ValidationRuleParser;
 use Framework\Kernel\Validator\Traits\FormatsMessagesTrait;
 use Framework\Kernel\Validator\Traits\ValidatesAttributesTrait;
+use stdClass;
 
 class Validator implements ValidatorInterface
 {
@@ -217,12 +218,95 @@ class Validator implements ValidatorInterface
 
     public function validated(): array
     {
+        throw_if($this->invalid(), $this->exception, $this);
 
+        $results = [];
+
+        $missingValue = new stdClass;
+
+        foreach ($this->getRules() as $key => $rules) {
+            $value = data_get($this->getData(), $key, $missingValue);
+            if ($this->excludeUnvalidatedArrayKeys &&
+                in_array('array', $rules) &&
+                $value !== null &&
+                ! empty(preg_grep('/^'.preg_quote($key, '/').'\.+/', array_keys($this->getRules())))) {
+                continue;
+            }
+
+            if ($value !== $missingValue) {
+                Arr::set($results, $key, $value);
+            }
+        }
+
+        return $this->replacePlaceholders($results);
+    }
+
+    public function getData(): array
+    {
+        return $this->data;
+    }
+
+    protected function replacePlaceholders(array $data): array
+    {
+        $originalData = [];
+
+        foreach ($data as $key => $value) {
+            $originalData[$this->replacePlaceholderInString($key)] = is_array($value)
+                ? $this->replacePlaceholders($value)
+                : $value;
+        }
+
+        return $originalData;
+    }
+
+    public function invalid(): array
+    {
+        if (! $this->messages) {
+            $this->passes();
+        }
+
+        $invalid = array_intersect_key(
+            $this->data, $this->attributesThatHaveMessages()
+        );
+
+        $result = [];
+
+        $failed = Arr::only(Arr::dot($invalid), array_keys($this->failed()));
+
+        foreach ($failed as $key => $failure) {
+            Arr::set($result, $key, $failure);
+        }
+
+        return $result;
+    }
+
+    protected function attributesThatHaveMessages(): array
+    {
+        return collect($this->messages()->toArray())->map(function ($message, $key) {
+            return explode('.', $key)[0];
+        })->unique()->flip()->all();
+    }
+
+    public function validate(): array
+    {
+        throw_if($this->fails(), $this->exception, $this);
+
+        return $this->validated();
     }
 
     public function fails(): bool
     {
         return ! $this->passes();
+    }
+
+    public function failed(): array
+    {
+        return $this->failedRules;
+    }
+
+    public function getRules(): array
+    {
+        return $this->rules;
     }
 
     public function passes(): bool
@@ -416,10 +500,27 @@ class Validator implements ValidatorInterface
             return true;
         }
 
-        return
+
+        return $this->presentOrRuleIsImplicit($rule, $attribute, $value) &&
             $this->isNotNullIfMarkedAsNullable($rule, $attribute) &&
             $this->hasNotFailedPreviousRuleIfPresenceRule($rule, $attribute);
     }
+
+    protected function presentOrRuleIsImplicit(object|string $rule,string $attribute,mixed $value): bool
+    {
+        if (is_string($value) && trim($value) === '') {
+            return $this->isImplicit($rule);
+        }
+
+        return $this->validatePresent($attribute, $value) ||
+            $this->isImplicit($rule);
+    }
+
+    public function validatePresent(string $attribute,mixed $value): bool
+    {
+        return Arr::has($this->data, $attribute);
+    }
+
     protected function isImplicit(object|string $rule): bool
     {
         return $rule instanceof ImplicitRule ||

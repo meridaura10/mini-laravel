@@ -3,11 +3,15 @@
 namespace Framework\Kernel\Foundation\Providers;
 
 use Framework\Kernel\Foundation\Providers\Contracts\DefaultProvidersInterface;
+use Framework\Kernel\Foundation\Providers\Services\AuthServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\ConsoleSupportServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\CookieServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\DatabaseServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\ExceptionViewServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\FilesystemProvider;
-use Framework\Kernel\Foundation\Providers\Services\SessionServiceServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\HashServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\PaginationServiceProvider;
+use Framework\Kernel\Foundation\Providers\Services\SessionServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\TranslationServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\ValidationServiceProvider;
 use Framework\Kernel\Foundation\Providers\Services\ViewServiceProvider;
@@ -20,15 +24,19 @@ class DefaultProviders implements DefaultProvidersInterface
     {
         $this->providers = $providers ? $providers :
             [
-                SessionServiceServiceProvider::class,
+                AuthServiceProvider::class,
+                SessionServiceProvider::class,
                 FoundationServiceProvider::class,
                 ViewServiceProvider::class,
+                HashServiceProvider::class,
                 FilesystemProvider::class,
                 DatabaseServiceProvider::class,
                 ConsoleSupportServiceProvider::class,
                 ValidationServiceProvider::class,
                 TranslationServiceProvider::class,
                 ExceptionViewServiceProvider::class,
+                CookieServiceProvider::class,
+                PaginationServiceProvider::class,
             ];
     }
 

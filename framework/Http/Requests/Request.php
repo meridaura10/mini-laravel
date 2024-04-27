@@ -11,19 +11,29 @@ use Framework\Kernel\Http\Requests\Bags\InputBag;
 use Framework\Kernel\Http\Requests\Bags\ParameterBag;
 use Framework\Kernel\Http\Requests\Bags\ServerBag;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
+use Framework\Kernel\Http\Requests\Exception\SuspiciousOperationException;
+use Framework\Kernel\Http\Requests\Traits\CanBePrecognitiveTrait;
 use Framework\Kernel\Http\Requests\Traits\InteractsWithContentTypesTrait;
+use Framework\Kernel\Http\Requests\Traits\InteractsWithFlashDataTrait;
 use Framework\Kernel\Http\Requests\Traits\InteractsWithInputTrait;
 use Framework\Kernel\Route\Route;
+use Framework\Kernel\Session\Contracts\SessionStoreInterface;
 use Framework\Kernel\Support\Arr;
+use RuntimeException;
 
 class Request extends SRequest implements RequestInterface, Arrayable
 {
     use InteractsWithContentTypesTrait,
-        InteractsWithInputTrait;
+        InteractsWithInputTrait,
+        CanBePrecognitiveTrait,
+        InteractsWithFlashDataTrait;
 
     protected ?InputBag $json = null;
 
+    protected ?Closure $userResolver = null;
     protected ?Closure $routeResolver = null;
+
+    protected ?SessionStoreInterface $session = null;
 
 
     public function uri(): string
@@ -38,7 +48,7 @@ class Request extends SRequest implements RequestInterface, Arrayable
 
     public function method(): string
     {
-        return $this->server->get('REQUEST_METHOD');
+        return $this->getMethod();
     }
 
 
@@ -48,6 +58,22 @@ class Request extends SRequest implements RequestInterface, Arrayable
 
         return $this;
     }
+
+    public function fullUrl(): string
+    {
+        $query = $this->getQueryString();
+
+        $question = $this->getBaseUrl().$this->getPathInfo() === '/' ? '/?' : '?';
+
+        return $query ? $this->url().$question.$query : $this->url();
+    }
+
+    public function url(): string
+    {
+        return rtrim(preg_replace('/\?.*/', '', $this->getUri()), '/');
+    }
+
+
 
     public function getRequestFormat(?string $default = 'html'): ?string
     {
@@ -120,15 +146,29 @@ class Request extends SRequest implements RequestInterface, Arrayable
 
         $request->setJson($from->json());
 
-//        if ($from->hasSession() && $session = $from->session()) {
-//            $request->setLaravelSession($session);
-//        }
-//
-//        $request->setUserResolver($from->getUserResolver());
-//
-//        $request->setRouteResolver($from->getRouteResolver());
+        if ($from->hasSession() && $session = $from->session()) {
+            $request->setSession($session);
+        }
+
+        $request->setUserResolver($from->getUserResolver());
+
+        $request->setRouteResolver($from->getRouteResolver());
 
         return $request;
+    }
+
+    public function setUserResolver(Closure $callback): static
+    {
+        $this->userResolver = $callback;
+
+        return $this;
+    }
+
+    public function getUserResolver(): Closure
+    {
+        return $this->userResolver ?: function () {
+            //
+        };
     }
 
     public function getRouteResolver(): Closure
@@ -147,6 +187,16 @@ class Request extends SRequest implements RequestInterface, Arrayable
         }
 
         return $route->parameter($param, $default);
+    }
+
+    public function getScheme(): string
+    {
+        return $this->isSecure() ? 'https' : 'http';
+    }
+
+    public function root(): string
+    {
+        return rtrim($this->getSchemeAndHttpHost().$this->getBaseUrl(), '/');
     }
 
     public function ajax(): bool
@@ -176,5 +226,29 @@ class Request extends SRequest implements RequestInterface, Arrayable
         $this->routeResolver = $callback;
 
         return $this;
+    }
+
+    public function setSession(SessionStoreInterface $session): void
+    {
+        $this->session = $session;
+    }
+
+    public function hasSession(bool $skipIfUninitialized = false): bool
+    {
+        return ! is_null($this->session);
+    }
+
+    public function session(): SessionStoreInterface
+    {
+        if (! $this->hasSession()) {
+            throw new RuntimeException('Session store not set on request.');
+        }
+
+        return $this->session;
+    }
+
+    public function isMethod(string $method): bool
+    {
+        return $this->getMethod() === strtoupper($method);
     }
 }

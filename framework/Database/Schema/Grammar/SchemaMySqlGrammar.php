@@ -36,6 +36,11 @@ class SchemaMySqlGrammar extends SchemaGrammar
         return $this->compileKey($blueprint, $command, 'unique');
     }
 
+    public function compileIndex(Blueprint $blueprint, Fluent $command): string
+    {
+        return $this->compileKey($blueprint, $command, 'index');
+    }
+
     protected function compileKey(Blueprint $blueprint, Fluent $command,string $type): string
     {
         return sprintf('alter table %s add %s %s%s(%s)',
@@ -181,5 +186,10 @@ class SchemaMySqlGrammar extends SchemaGrammar
     public function compileDropIfExists(Blueprint $blueprint, Fluent $command): string
     {
         return 'drop table if exists '.$this->wrapTable($blueprint);
+    }
+
+    protected function typeBoolean(Fluent $column): string
+    {
+        return 'tinyint(1)';
     }
 }

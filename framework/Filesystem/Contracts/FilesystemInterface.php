@@ -23,4 +23,6 @@ interface FilesystemInterface
     public function ensureDirectoryExists(string $path,int $mode = 0755,bool $recursive = true): void;
 
     public function requireOnce(string $path, array $data = []): mixed;
+
+    public function delete(array|string $paths): bool;
 }

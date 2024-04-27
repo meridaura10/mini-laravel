@@ -10,4 +10,5 @@ interface UrlRoutableInterface
 
     public function getRouteKeyName(): string;
 
+    public function getRouteKey(): mixed;
 }

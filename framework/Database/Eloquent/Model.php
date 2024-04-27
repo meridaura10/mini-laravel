@@ -2,6 +2,7 @@
 
 namespace Framework\Kernel\Database\Eloquent;
 
+use Closure;
 use Framework\Kernel\Contracts\Support\Arrayable;
 use Framework\Kernel\Contracts\Support\Jsonable;
 use Framework\Kernel\Database\Contracts\BuilderInterface;
@@ -37,13 +38,25 @@ abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRouta
 
     protected static array $booted = [];
 
+    protected array $changes = [];
+
     protected static array $traitInitializers = [];
 
     protected static array $globalScopes = [];
 
+    protected static bool $modelsShouldPreventAccessingMissingAttributes = false;
+
+    protected static ?Closure $missingAttributeViolationCallback = null;
+
     protected ?string $table = null;
 
     protected bool $exists = false;
+
+    protected int $perPage = 15;
+
+    public bool $preventsLazyLoading = false;
+
+    public bool $wasRecentlyCreated = false;
 
     protected bool $incrementing = true;
 
@@ -90,6 +103,12 @@ abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRouta
         static::$resolver = $resolver;
     }
 
+    public static function preventsAccessingMissingAttributes(): bool
+    {
+        return static::$modelsShouldPreventAccessingMissingAttributes;
+    }
+
+
     public static function clearBootedModels(): void
     {
         static::$booted = [];
@@ -102,7 +121,7 @@ abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRouta
         return (new static)->newQuery();
     }
 
-    public function newCollection(array $models): EloquentCollection
+    public function newCollection(array $models = []): EloquentCollection
     {
         return new EloquentCollection($models);
     }
@@ -195,7 +214,37 @@ abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRouta
     {
         $dirty = $this->getDirty();
 
-        dd('performUpdate model');
+        if (count($dirty) > 0) {
+            $this->setKeysForSaveQuery($query)->update($dirty);
+
+            $this->syncChanges();
+        }
+
+        return true;
+    }
+
+    public function syncChanges(): static
+    {
+        $this->changes = $this->getDirty();
+
+        return $this;
+    }
+
+    protected function setKeysForSaveQuery(BuilderInterface $query): BuilderInterface
+    {
+        $query->where($this->getKeyName(), '=', $this->getKeyForSaveQuery());
+
+        return $query;
+    }
+
+    protected function getKeyForSaveQuery()
+    {
+        return $this->original[$this->getKeyName()] ?? $this->getKey();
+    }
+
+    public function getKey(): mixed
+    {
+        return $this->getAttribute($this->getKeyName());
     }
 
     protected function insertAndSetId(BuilderInterface $query, $attributes): void
@@ -318,6 +367,12 @@ abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRouta
         return $this->getKeyName();
     }
 
+    public function getRouteKey(): mixed
+    {
+        return $this->getAttribute($this->getRouteKeyName());
+    }
+
+
     public function getIncrementing(): bool
     {
         return $this->incrementing;
@@ -403,6 +458,44 @@ abstract class Model implements Jsonable, Arrayable, \JsonSerializable, UrlRouta
         }
 
         return $json;
+    }
+
+    public function delete(): bool
+    {
+//        $this->mergeAttributesFromCachedCasts();
+
+        if (is_null($this->getKeyName())) {
+            throw new \LogicException('No primary key defined on model.');
+        }
+
+        if (! $this->exists) {
+            return false;
+        }
+
+        $this->touchOwners();
+
+        $this->performDeleteOnModel();
+
+        return true;
+    }
+
+    public function getPerPage(): int
+    {
+        return $this->perPage;
+    }
+
+    public function setPerPage(int $perPage = 15): static
+    {
+        $this->perPage = $perPage;
+
+        return $this;
+    }
+
+    protected function performDeleteOnModel(): void
+    {
+        $this->setKeysForSaveQuery($this->newModelQuery())->delete();
+
+        $this->exists = false;
     }
 
     public function __set($key, $value)

@@ -19,9 +19,26 @@ class Collection implements ArrayAccess, Enumerable
 
     protected array $items = [];
 
+    public static function make(iterable $items = []): static
+    {
+        return new static($items);
+    }
+
+    public function flip(): static
+    {
+        return new static(array_flip($this->items));
+    }
+
     public function __construct(mixed $items = [])
     {
         $this->items = $this->getArrayableItems($items);
+    }
+
+    public function prepend(mixed $value,mixed $key = null): static
+    {
+        $this->items = Arr::prepend($this->items, ...func_get_args());
+
+        return $this;
     }
 
     public function last(?callable $callback = null,mixed $default = null): mixed
@@ -45,6 +62,122 @@ class Collection implements ArrayAccess, Enumerable
             $items instanceof UnitEnum => [$items],
             default => (array) $items,
         };
+    }
+
+    public function mapToDictionary(callable $callback): static
+    {
+        $dictionary = [];
+
+        foreach ($this->items as $key => $item) {
+            $pair = $callback($item, $key);
+
+            $key = key($pair);
+
+            $value = reset($pair);
+
+            if (! isset($dictionary[$key])) {
+                $dictionary[$key] = [];
+            }
+
+            $dictionary[$key][] = $value;
+        }
+
+        return new static($dictionary);
+    }
+
+    public function unique(callable|string|null $key = null,bool $strict = false): static
+    {
+        if (is_null($key) && $strict === false) {
+            return new static(array_unique($this->items, SORT_REGULAR));
+        }
+
+        $callback = $this->valueRetriever($key);
+
+        $exists = [];
+
+        return $this->reject(function ($item, $key) use ($callback, $strict, &$exists) {
+            if (in_array($id = $callback($item, $key), $exists, $strict)) {
+                return true;
+            }
+
+            $exists[] = $id;
+        });
+    }
+
+    public function sort(callable|int|null $callback = null): static
+    {
+        $items = $this->items;
+
+        $callback && is_callable($callback)
+            ? uasort($items, $callback)
+            : asort($items, $callback ?? SORT_REGULAR);
+
+        return new static($items);
+    }
+
+
+    public function join(string $glue,string  $finalGlue = ''): string
+    {
+        if ($finalGlue === '') {
+            return $this->implode($glue);
+        }
+
+        $count = $this->count();
+
+        if ($count === 0) {
+            return '';
+        }
+
+        if ($count === 1) {
+            return $this->last();
+        }
+
+        $collection = new static($this->items);
+
+        $finalItem = $collection->pop();
+
+        return $collection->implode($glue).$finalGlue.$finalItem;
+    }
+
+    public function count(): int
+    {
+        return count($this->items);
+    }
+
+    public function pop(int $count = 1): static
+    {
+        if ($count === 1) {
+            return array_pop($this->items);
+        }
+
+        if ($this->isEmpty()) {
+            return new static;
+        }
+
+        $results = [];
+
+        $collectionCount = $this->count();
+
+        foreach (range(1, min($count, $collectionCount)) as $item) {
+            array_push($results, array_pop($this->items));
+        }
+
+        return new static($results);
+    }
+
+    public function implode(\Closure|string $value,?string $glue = null): string
+    {
+        if ($this->useAsCallable($value)) {
+            return implode($glue ?? '', $this->map($value)->all());
+        }
+
+        $first = $this->first();
+
+        if (is_array($first) || (is_object($first) && ! $first instanceof Stringable)) {
+            return implode($glue ?? '', $this->pluck($value)->all());
+        }
+
+        return implode($value ?? '', $this->items);
     }
 
     public function pluck(array|string|int $value,?string $key = null): static
@@ -140,6 +273,7 @@ class Collection implements ArrayAccess, Enumerable
     public function concat(iterable $source): static
     {
         $result = new static($this);
+
         foreach ($source as $item) {
             $result->push($item);
         }

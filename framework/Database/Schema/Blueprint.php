@@ -200,6 +200,11 @@ class Blueprint
         return $this->bigIncrements($column);
     }
 
+    public function boolean(string $column): ColumnDefinition
+    {
+        return $this->addColumn('boolean', $column);
+    }
+
     public function bigIncrements(string $column): ColumnDefinition
     {
         return $this->unsignedBigInteger($column, true);
@@ -232,6 +237,10 @@ class Blueprint
         return $this->addColumn('string', $column, compact('length'));
     }
 
+    public function rememberToken(): ColumnDefinition
+    {
+        return $this->string('remember_token', 100)->nullable();
+    }
     public function timestamps(int $precision = 0): void
     {
         $this->timestamp('created_at', $precision)->nullable();
@@ -307,6 +316,31 @@ class Blueprint
             'autoIncrement' => false,
             'unsigned' => true,
         ]));
+    }
+
+    public function morphs(string $name, ?string $indexName = null): void
+    {
+        if (SchemaBuilder::$defaultMorphKeyType === 'uuid') {
+            $this->uuidMorphs($name, $indexName);
+        } elseif (SchemaBuilder::$defaultMorphKeyType === 'ulid') {
+            $this->ulidMorphs($name, $indexName);
+        } else {
+            $this->numericMorphs($name, $indexName);
+        }
+    }
+
+    public function numericMorphs(string $name,?string $indexName = null): void
+    {
+        $this->string("{$name}_type");
+
+        $this->unsignedBigInteger("{$name}_id");
+
+        $this->index(["{$name}_type", "{$name}_id"], $indexName);
+    }
+
+    public function index(array|string $columns,?string $name = null,?string $algorithm = null): Fluent
+    {
+        return $this->indexCommand('index', $columns, $name, $algorithm);
     }
 
     public function getTable(): string

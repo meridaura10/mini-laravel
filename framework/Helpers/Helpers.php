@@ -1,11 +1,17 @@
 <?php
 
+use Framework\Kernel\Auth\Contracts\AuthFactoryInterface;
+use Framework\Kernel\Auth\Contracts\AuthGuardInterface;
+use Framework\Kernel\Auth\Contracts\AuthStatefulGuardInterface;
 use Framework\Kernel\Console\Contracts\ConsoleOutputInterface;
 use Framework\Kernel\Console\Termwind\HtmlRenderer;
 use Framework\Kernel\Console\Termwind\Terminal;
 use Framework\Kernel\Console\Termwind\Termwind;
 use Framework\Kernel\Container\Container;
 use Framework\Kernel\Contracts\Support\Htmlable;
+use Framework\Kernel\Http\Responses\RedirectResponse;
+use Framework\Kernel\Route\Redirector\Contracts\RedirectorInterface;
+use Framework\Kernel\Route\UrlGenerator\UrlGeneratorInterface;
 use Framework\Kernel\Support\Arr;
 use Framework\Kernel\Support\Collection;
 use Framework\Kernel\Support\HigherOrderTapProxy;
@@ -13,15 +19,15 @@ use Framework\Kernel\Support\Str;
 use Framework\Kernel\View\Contracts\DeferringDisplayableValueInterface;
 use Framework\Kernel\View\Contracts\ViewInterface;
 
-if (! function_exists('collect')) {
+if (!function_exists('collect')) {
     function collect(mixed $items = []): Collection
     {
         return new Collection($items);
     }
 }
 
-if (! function_exists('__')) {
-    function __(?string $key = null,array $replace = [],array|string $locale = null): array|string|null
+if (!function_exists('__')) {
+    function __(?string $key = null, array $replace = [], array|string $locale = null): array|string|null
     {
         if (is_null($key)) {
             return $key;
@@ -31,7 +37,75 @@ if (! function_exists('__')) {
     }
 }
 
-if (! function_exists('app')) {
+if (! function_exists('old')) {
+    function old(?string $key = null,mixed $default = null): mixed
+    {
+        return app('request')->old($key, $default);
+    }
+}
+
+if (! function_exists('throw_if')) {
+    function throw_if(mixed $condition,string|Throwable $exception = 'RuntimeException',mixed ...$parameters): mixed
+    {
+        if ($condition) {
+            if (is_string($exception) && class_exists($exception)) {
+                $exception = new $exception(...$parameters);
+            }
+
+            throw is_string($exception) ? new RuntimeException($exception) : $exception;
+        }
+
+        return $condition;
+    }
+}
+
+
+if (! function_exists('asset')) {
+    function asset(string $path,?bool $secure = null): string
+    {
+        return app('url')->asset($path, $secure);
+    }
+}
+
+if (! function_exists('url')) {
+    function url(?string $path = null,mixed $parameters = [],?bool $secure = null): urlGeneratorInterface|string
+    {
+        if (is_null($path)) {
+            return app(urlGeneratorInterface::class);
+        }
+
+        return app(urlGeneratorInterface::class)->to($path, $parameters, $secure);
+    }
+}
+
+
+if (! function_exists('redirect')) {
+    function redirect(?string $to = null,int $status = 302,array $headers = [],?bool $secure = null): RedirectorInterface|RedirectResponse
+    {
+        if (is_null($to)) {
+            return app('redirect');
+        }
+
+        return app('redirect')->to($to, $status, $headers, $secure);
+    }
+}
+
+if (! function_exists('session')) {
+    function session(array|string|null $key = null,mixed $default = null): \Framework\Kernel\Session\Contracts\SessionStoreInterface|\Framework\Kernel\Session\SessionManager
+    {
+        if (is_null($key)) {
+            return app('session');
+        }
+
+        if (is_array($key)) {
+            return app('session')->put($key);
+        }
+
+        return app('session')->get($key, $default);
+    }
+}
+
+if (!function_exists('app')) {
     function app($abstract = null): mixed
     {
         if (is_null($abstract)) {
@@ -43,14 +117,14 @@ if (! function_exists('app')) {
 }
 
 
-if (! function_exists('head')) {
+if (!function_exists('head')) {
     function head(array $array): array
     {
         return reset($array);
     }
 }
 
-if (! function_exists('fake')) {
+if (!function_exists('fake')) {
     function fake(?string $locale = null): \Faker\Generator
     {
         if (app()->bound('config')) {
@@ -59,32 +133,57 @@ if (! function_exists('fake')) {
 
         $locale ??= 'en_US';
 
-        $abstract = \Faker\Generator::class.':'.$locale;
+        $abstract = \Faker\Generator::class . ':' . $locale;
 
-        if (! app()->bound($abstract)) {
-            app()->singleton($abstract, fn () => \Faker\Factory::create($locale));
+        if (!app()->bound($abstract)) {
+            app()->singleton($abstract, fn() => \Faker\Factory::create($locale));
         }
 
         return app()->make($abstract);
     }
 }
 
+if (!function_exists('windows_os')) {
+    function windows_os(): bool
+    {
+        return PHP_OS_FAMILY === 'Windows';
+    }
+}
 
-if (! function_exists('now')) {
+if (!function_exists('route')) {
+    function route(string $name, mixed $parameters = [], bool $absolute = true): string
+    {
+        return app('url')->route($name, $parameters, $absolute);
+    }
+}
+
+if (!function_exists('auth')) {
+    function auth(?string $guard = null): AuthFactoryInterface|AuthGuardInterface|AuthStatefulGuardInterface
+    {
+        if (is_null($guard)) {
+            return app(AuthFactoryInterface::class);
+        }
+
+        return app(AuthFactoryInterface::class)->guard($guard);
+    }
+}
+
+
+if (!function_exists('now')) {
     function now(DateTimeZone|string|null $tz = null): \Carbon\Carbon
     {
         return \Carbon\Carbon::now($tz);
     }
 }
 
-if (! function_exists('last')) {
+if (!function_exists('last')) {
     function last(array $array): mixed
     {
         return end($array);
     }
 }
 
-if (! function_exists('app_path')) {
+if (!function_exists('app_path')) {
 
     function app_path(string $path = ''): string
     {
@@ -92,7 +191,7 @@ if (! function_exists('app_path')) {
     }
 }
 
-if (! function_exists('tap')) {
+if (!function_exists('tap')) {
 
     function tap(mixed $value, ?callable $callback = null)
     {
@@ -106,7 +205,7 @@ if (! function_exists('tap')) {
     }
 }
 
-if (! function_exists('with')) {
+if (!function_exists('with')) {
 
     function with(mixed $value, ?callable $callback = null): mixed
     {
@@ -114,21 +213,21 @@ if (! function_exists('with')) {
     }
 }
 
-if (! function_exists('view')) {
+if (!function_exists('view')) {
 
     function view(?string $path = null, array $data = [], array $mergeData = []): ViewInterface|\Framework\Kernel\View\Contracts\ViewFactoryInterface
     {
         $factory = app('view');
 
-        if (! func_num_args()) {
+        if (!func_num_args()) {
             return $factory;
         }
 
-        return $factory->make($path,$data);
+        return $factory->make($path, $data);
     }
 }
 
-if (! function_exists('class_uses_recursive')) {
+if (!function_exists('class_uses_recursive')) {
     function class_uses_recursive(object|string $class): array
     {
         if (is_object($class)) {
@@ -145,7 +244,7 @@ if (! function_exists('class_uses_recursive')) {
     }
 }
 
-if (! function_exists('trait_uses_recursive')) {
+if (!function_exists('trait_uses_recursive')) {
     function trait_uses_recursive(object|string $trait): array
     {
         $traits = class_uses($trait) ?: [];
@@ -158,8 +257,8 @@ if (! function_exists('trait_uses_recursive')) {
     }
 }
 
-if (! function_exists('trans')) {
-    function trans(?string $key = null,array $replace = [],?string $locale = null): \Framework\Kernel\Translation\Contracts\TranslatorInterface|string|array|null
+if (!function_exists('trans')) {
+    function trans(?string $key = null, array $replace = [], ?string $locale = null): \Framework\Kernel\Translation\Contracts\TranslatorInterface|string|array|null
     {
         if (is_null($key)) {
             return app('translator');
@@ -169,17 +268,16 @@ if (! function_exists('trans')) {
     }
 }
 
-if (! function_exists('env')) {
+if (!function_exists('env')) {
 
     function env(string $key, mixed $default = null): mixed
     {
-        return $default;
-        //        return Env::get($key, $default);
+        return \Framework\Kernel\Support\Env::get($key, $default);
     }
 }
 
-if (! function_exists('e')) {
-    function e(BackedEnum|DeferringDisplayableValueInterface|Htmlable|null|string $value,bool $doubleEncode = true): string
+if (!function_exists('e')) {
+    function e(BackedEnum|DeferringDisplayableValueInterface|Htmlable|null|string $value, bool $doubleEncode = true): string
     {
         if ($value instanceof DeferringDisplayableValueInterface) {
             $value = $value->resolveDisplayableValue();
@@ -197,7 +295,7 @@ if (! function_exists('e')) {
     }
 }
 
-if (! function_exists('class_basename')) {
+if (!function_exists('class_basename')) {
 
     function class_basename(mixed $class): string
     {
@@ -207,13 +305,12 @@ if (! function_exists('class_basename')) {
     }
 }
 
-if (! function_exists('str')) {
+if (!function_exists('str')) {
 
     function str(?string $string = null): mixed
     {
         if (func_num_args() === 0) {
-            return new class
-            {
+            return new class {
                 public function __call($method, $parameters)
                 {
                     return Str::$method(...$parameters);
@@ -230,8 +327,8 @@ if (! function_exists('str')) {
     }
 }
 
-if (! function_exists('response')) {
-    function response(ViewInterface|string|array|null $content = '',int $status = 200, array $headers = []): \Framework\Kernel\Http\Responses\Factory\Contracts\ResponseFactoryInterface|\Framework\Kernel\Http\Responses\Contracts\ResponseInterface
+if (!function_exists('response')) {
+    function response(ViewInterface|string|array|null $content = '', int $status = 200, array $headers = []): \Framework\Kernel\Http\Responses\Factory\Contracts\ResponseFactoryInterface|\Framework\Kernel\Http\Responses\Contracts\ResponseInterface
     {
         $factory = app(\Framework\Kernel\Http\Responses\Factory\Contracts\ResponseFactoryInterface::class);
 
@@ -243,8 +340,8 @@ if (! function_exists('response')) {
     }
 }
 
-if (! function_exists('config')) {
-    function config(array|string|null $key = null,mixed $default = null): mixed
+if (!function_exists('config')) {
+    function config(array|string|null $key = null, mixed $default = null): mixed
     {
         if (is_null($key)) {
             return app('config');
@@ -259,7 +356,7 @@ if (! function_exists('config')) {
 }
 
 
-if (! function_exists('value')) {
+if (!function_exists('value')) {
 
     function value(mixed $value, mixed ...$args): mixed
     {
@@ -267,14 +364,14 @@ if (! function_exists('value')) {
     }
 }
 
-if (! function_exists('base_path')) {
+if (!function_exists('base_path')) {
     function base_path(string $path = ''): string
     {
         return app()->basePath($path);
     }
 }
 
-if (! function_exists('resource_path')) {
+if (!function_exists('resource_path')) {
 
     function resource_path(string $path = '')
     {
@@ -282,7 +379,7 @@ if (! function_exists('resource_path')) {
     }
 }
 
-if (! function_exists('data_get')) {
+if (!function_exists('data_get')) {
 
     function data_get(mixed $target, string|array|int|null $key, mixed $default = null): mixed
     {
@@ -302,7 +399,7 @@ if (! function_exists('data_get')) {
             if ($segment === '*') {
                 if ($target instanceof Collection) {
                     $target = $target->all();
-                } elseif (! is_iterable($target)) {
+                } elseif (!is_iterable($target)) {
                     return value($default);
                 }
 

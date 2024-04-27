@@ -4,6 +4,7 @@ namespace Framework\Kernel\Support;
 
 use Framework\Kernel\Support\Pluralizer\Pluralizer;
 use Traversable;
+use voku\helper\ASCII;
 
 class Str
 {
@@ -30,6 +31,32 @@ class Str
         return false;
     }
 
+    public static function slug(string $title,string $separator = '-',?string $language = 'en',array $dictionary = ['@' => 'at']): string
+    {
+        $title = $language ? static::ascii($title, $language) : $title;
+
+        $flip = $separator === '-' ? '_' : '-';
+
+        $title = preg_replace('!['.preg_quote($flip).']+!u', $separator, $title);
+
+        foreach ($dictionary as $key => $value) {
+            $dictionary[$key] = $separator.$value.$separator;
+        }
+
+        $title = str_replace(array_keys($dictionary), array_values($dictionary), $title);
+
+        $title = preg_replace('![^'.preg_quote($separator).'\pL\pN\s]+!u', '', static::lower($title));
+
+        $title = preg_replace('!['.preg_quote($separator).'\s]+!u', $separator, $title);
+
+        return trim($title, $separator);
+    }
+
+    public static function ascii(string $value,string $language = 'en'): string
+    {
+        return ASCII::to_ascii((string) $value, $language);
+    }
+
     public static function parseCallback(string $callback,?string $default = null): array
     {
         if (static::contains($callback, "@anonymous\0")) {
@@ -45,6 +72,18 @@ class Str
 
         return static::contains($callback, '@') ? explode('@', $callback, 2) : [$callback, $default];
     }
+
+    public static function before(string $subject,string $search): string
+    {
+        if ($search === '') {
+            return $subject;
+        }
+
+        $result = strstr($subject, (string) $search, true);
+
+        return $result === false ? $subject : $result;
+    }
+
 
     public static function afterLast(string $subject,string $search): string
     {

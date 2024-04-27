@@ -7,6 +7,8 @@ use Framework\Kernel\Foundation\Providers\ServiceProvider;
 use Framework\Kernel\Http\Requests\Contracts\RequestInterface;
 use Framework\Kernel\Http\Requests\Contracts\ValidatesWhenResolvedInterface;
 use Framework\Kernel\Http\Requests\FormRequest;
+use Framework\Kernel\Route\Redirector\Contracts\RedirectorInterface;
+use Framework\Kernel\Route\Redirector\Redirector;
 
 class FormRequestServiceProvider extends ServiceProvider
 {
@@ -23,8 +25,8 @@ class FormRequestServiceProvider extends ServiceProvider
 
         $this->app->resolving(FormRequest::class, function ($request, $app) {
             $request = FormRequest::createFrom($app['request'], $request);
-//            ->setRedirector($app->make(Redirector::class))
-            $request->setContainer($app);
+
+            $request->setContainer($app)->setRedirector($app->make(RedirectorInterface::class));
         });
     }
 }

@@ -5,6 +5,7 @@ namespace Framework\Kernel\Validator\Traits;
 use Brick\Math\BigNumber;
 use Framework\Kernel\Database\Eloquent\Model;
 use Framework\Kernel\Filesystem\File;
+use Framework\Kernel\Filesystem\UploadedFile;
 use Framework\Kernel\Support\Arr;
 use Framework\Kernel\Support\Exceptions\MathException;
 use Framework\Kernel\Support\Str;
@@ -16,6 +17,22 @@ trait ValidatesAttributesTrait
     public function validateString(string $attribute,mixed $value): bool
     {
         return is_string($value);
+    }
+
+    public function validateMax(string $attribute,mixed $value,array $parameters): bool
+    {
+        $this->requireParameterCount(1, $parameters, 'max');
+
+        if ($value instanceof UploadedFile && ! $value->isValid()) {
+            return false;
+        }
+
+        return BigNumber::of($this->getSize($attribute, $value))->isLessThanOrEqualTo($this->trim($parameters[0]));
+    }
+
+    public function validateNullable(): bool
+    {
+        return true;
     }
 
     public function validateRequired(string $attribute,mixed $value): bool
@@ -57,6 +74,13 @@ trait ValidatesAttributesTrait
         }
 
         return [$connection, $table, $idColumn ?? null];
+    }
+
+    public function validateBoolean(string $attribute,mixed $value): bool
+    {
+        $acceptable = [true, false, 0, 1, '0', '1'];
+
+        return in_array($value, $acceptable, true);
     }
 
     public function validateExists(string $attribute,mixed $value,array $parameters): bool

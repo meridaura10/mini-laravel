@@ -28,6 +28,19 @@ class Filesystem implements FilesystemInterface
         throw new FileNotFoundException("File does not exist at path {$path}.");
     }
 
+    public function link(string $target,string $link): ?bool
+    {
+        if(! windows_os()){
+            return symlink($target, $link);
+        }
+
+        $mode = $this->isDirectory($target) ? 'J' : 'H';
+
+        exec("mklink /{$mode} ".escapeshellarg($link).' '.escapeshellarg($target));
+
+        return true;
+    }
+
     public function isFile(string $file): bool
     {
         return is_file($file);
@@ -121,5 +134,26 @@ class Filesystem implements FilesystemInterface
         }
 
         throw new FileNotFoundException("File does not exist at path {$path}.");
+    }
+
+    public function delete(array|string $paths): bool
+    {
+        $paths = is_array($paths) ? $paths : func_get_args();
+
+        $success = true;
+
+        foreach ($paths as $path) {
+            try {
+                if (@unlink($path)) {
+                    clearstatcache(false, $path);
+                } else {
+                    $success = false;
+                }
+            } catch (\ErrorException) {
+                $success = false;
+            }
+        }
+
+        return $success;
     }
 }
